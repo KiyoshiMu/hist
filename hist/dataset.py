@@ -10,6 +10,8 @@ from sklearn.preprocessing import LabelEncoder
 import torch
 from torch.utils.data import Dataset
 
+from hist.io_utils import simplify_label
+
 CELL_FEATURE_SIZE = 256
 MaskMap = dict[str, torch.Tensor]
 
@@ -48,8 +50,6 @@ class Subset(Dataset):
     def __len__(self):
         return len(self.indices)
 
-def simplify_label(label: str) -> str:
-    return label
 
 class CustomImageDataset(Dataset):
     def __init__(
@@ -60,15 +60,12 @@ class CustomImageDataset(Dataset):
         bag_size=96,
         
     ):
-        self.features = features
+        self.features = [torch.as_tensor(feature, dtype=torch.float32) for feature in features]
         self.slide_names = slide_names
-        self.targets = self.labels
         self.bag_size = bag_size
-        self.simple_labels = np.array([simplify_label(l) for l in labels])
-        self.slide_names = slide_names
         self.labels = labels
         self.le = LabelEncoder()
-        self.targets = self.le.fit_transform(self.simple_labels)
+        self.targets = self.le.fit_transform(self.labels)
         
         self.mask_tensor = torch.zeros(CELL_FEATURE_SIZE, dtype=torch.float32)
         self._mask_map = None
@@ -84,6 +81,7 @@ class CustomImageDataset(Dataset):
             0,
             torch.as_tensor(random.sample(range(len(feature_pool)), self.bag_size)),
         )
+        # print(feature_bag.shape)
         return feature_bag, label
 
     def _get_features_by_idx(self, idx: int):

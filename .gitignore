@@ -1,3 +1,6 @@
+logs
+saved_models
+experiment*
 Data
 *.ipynb
 .vscode
