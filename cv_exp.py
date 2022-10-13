@@ -8,37 +8,59 @@ import numpy as np
 import random
 import torch
 import pickle
+from sklearn.preprocessing import StandardScaler
 
 import hist.dataset as data
 from hist.embed import ds_avg, ds_embed, ds_project
-from hist.io_utils import simplify_label
+from hist.io_utils import pkl_dump, simplify_label
 from hist.model import BagPooling, encoder_training
 from hist.plot import measure_slide_vectors
 
 random.seed(42)
-PCA_N = 150
-
+PCA_N = 64
+THRESHOLD = 96
 def sample_features(features: Sequence, n: int):
     indices = random.sample(range(len(features)), n)
     return (features[i] for i in indices)
 
 
+def mk_scaler(train_feat_pool, pca):
+    scaler = StandardScaler()
+    feature_samples = list(
+        chain.from_iterable(
+            (sample_features(feat_pool, 96) for feat_pool in train_feat_pool)
+        )
+    )
+    scaler.fit(pca.transform(feature_samples))
+    return scaler
+
+def norm_prop(wsi_feats, scaler, pca):
+    return scaler.transform(pca.transform(wsi_feats)).mean(axis=0)
+
+def norm_pipe(wsi_feats):
+    pca = mk_pca(wsi_feats)
+    scaler = mk_scaler(wsi_feats, pca)
+    features_normed = [norm_prop(feats, scaler, pca) for feats in wsi_feats]
+    return features_normed, scaler, pca
+
 def mk_pca(train_feat_pool):
     pca = PCA(n_components=PCA_N)
     feature_samples = list(
         chain.from_iterable(
-            (sample_features(feat_pool, 4) for feat_pool in train_feat_pool)
+            (sample_features(feat_pool, THRESHOLD) for feat_pool in train_feat_pool)
         )
     )
     pca.fit(feature_samples)
+    explain_sum = pca.explained_variance_ratio_.sum()
+    print(f"PCA explained variance ratio: {explain_sum}")
     return pca
 
 
-BASE_DIR = "experiments0"
+BASE_DIR = "experiments1"
 
 
 class Planner:
-    def __init__(self, threshold=96) -> None:
+    def __init__(self, threshold=THRESHOLD) -> None:
         self.base = Path(BASE_DIR)
         print(f"torch.cuda.is_available: {torch.cuda.is_available()}")
         features = np.load("Data/features.npy", allow_pickle=True)
@@ -96,6 +118,10 @@ class Planner:
             train_indices = cache["train"]
         train_feature = [self.features[i] for i in train_indices]
         pca = mk_pca(train_feature)
+        # save pca
+        with open(dst / "pca.pkl", "wb") as f:
+            pickle.dump(pca, f)
+            
         in_dim = PCA_N
         train_x = [pca.transform(feat) for feat in train_feature]
         train_y = [self.labels[i] for i in train_indices]
@@ -181,6 +207,42 @@ class Planner:
             dummy_baseline=False,
         )
 
+def norm_exp(features, labels, slide_names):
+    BASE_DIR = "experiments1"
+    base = Path(BASE_DIR)
+    for trial in range(5):
+        dst_dir = base / f"trial{trial}"
+        split_json_p = dst_dir / f"split{trial}.json"
+        with open(split_json_p, "r") as f:
+            cache = json.load(f)
+            train_indices = cache["train"]
+            val_indices = cache["val"]
+        train_feature = [features[i] for i in train_indices]
+        val_feature = [features[i] for i in val_indices]
+        
+        train_x, scaler, pca = norm_pipe(train_feature)
+        train_y = [labels[i] for i in train_indices]
+        train_slide_names = [slide_names[i] for i in train_indices]
+
+        pkl_dst = str(dst_dir / "normTrain_pool.pkl")
+        pkl_dump(dict(embed_pool=train_x, labels=train_y, index=train_slide_names), pkl_dst)
+        
+        val_x = [norm_prop(feats, scaler, pca) for feats in val_feature]
+        val_y = [labels[i] for i in val_indices]
+        val_slide_names = [slide_names[i] for i in val_indices]
+
+        pkl_dst = str(dst_dir / "normVal_pool.pkl")
+        pkl_dump(dict(embed_pool=val_x, labels=val_y, index=val_slide_names), pkl_dst)
+        
+        measure_slide_vectors(
+                dst_dir / "normTrain_pool.pkl",
+                dst_dir / "normVal_pool.pkl",
+                mark="norm",
+                trial=trial,
+                dummy_baseline=False,
+                dst=dst_dir,
+            )
+        
 if __name__ == "__main__":
     planner = Planner()
     planner.run()

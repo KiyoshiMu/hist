@@ -241,3 +241,161 @@ def plot_embedding(df: pd.DataFrame, marks = None):
         height=600,
     )
     return fig
+
+def name_mapping(name):
+    name = name.lower()
+    if "dummy" in name:
+        return "Empirical Inference"
+    if "avg" in name:
+        return "AvgPooling on Bags"
+    if "hnf" in name:
+        return "HNF"
+    return "Hopfield on Bags"
+
+def plot_tag_perf_with_std(
+    performance,
+    main_metrics="F1 Score",
+    include_random=False,
+    include_avg=False,
+    include_hct=False,
+    show_recall_precision=True,
+):
+    #  perf_average, perf_err
+
+    performance.sort_values(
+        f"{main_metrics}_mean",
+        inplace=True,
+    )
+    fig = go.Figure()
+    x =  performance.index
+    marker_symbols = ["circle", "square", "x", "diamond", "cross", "triangle-up"]
+    # fig.add_shape(
+    #     type="line",
+    #     x0=0.01,
+    #     y0=perf_average,
+    #     x1=0.99,
+    #     y1=perf_average,
+    #     xref="paper",
+    #     line=dict(color="lightgray", width=2, dash="dash"),
+    # )
+    if show_recall_precision:
+        for idx, measure in enumerate(["Precision", "Recall"]):
+            fig.add_trace(
+                go.Scatter(
+                    x=x,
+                    y=performance[f"{measure}_mean"],
+                    error_y=dict(
+                        color="lightgray",
+                        type="data",
+                        array=performance[f"{measure}_std"],
+                        visible=False,
+                    ),
+                    marker_color="lightgray",
+                    marker_symbol=marker_symbols[idx],
+                    marker_size=8,
+                    mode="markers",
+                    name=measure,
+                ),
+            )
+
+    if include_random:
+        random_title = "Dummy"
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=performance[f"{random_title}_mean"],
+                error_y=dict(
+                    color="lightgray",
+                    type="data",
+                    array=performance[f"{random_title}_std"],
+                    visible=False,
+                ),
+                marker_color="pink",
+                mode="markers+text",
+                text=[f"{v:.02f}" for v in performance[f"{random_title}_mean"]],
+                marker_size=8,
+                marker_symbol=marker_symbols[0],
+                name=name_mapping(random_title),
+            ),
+        )
+    if include_hct:
+        hct_title = "HNF"
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=performance[f"{hct_title}_mean"],
+                error_y=dict(
+                    color="lightgray",
+                    type="data",
+                    array=performance[f"{hct_title}_std"],
+                    visible=False,
+                ),
+                marker_color="lightgreen",
+                mode="markers+text",
+                text=[f"{v:.02f}" for v in performance[f"{hct_title}_mean"]],
+                marker_size=8,
+                marker_symbol=marker_symbols[1],
+                name=name_mapping(hct_title),
+            )
+        )
+    if include_avg:
+        avg_title = "Avg"
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=performance[f"{avg_title}_mean"],
+                error_y=dict(
+                    color="lightgray",
+                    type="data",
+                    array=performance[f"{avg_title}_std"],
+                    visible=False,
+                ),
+                marker_color="orange",
+                mode="markers+text",
+                text=[f"{v:.02f}" for v in performance[f"{avg_title}_mean"]],
+                marker_size=8,
+                marker_symbol=marker_symbols[2],
+                name=name_mapping(avg_title),
+            )
+        )
+    fig.add_trace(
+        go.Scatter(
+            x=x,
+            y=performance[f"{main_metrics}_mean"],
+            error_y=dict(
+                color="lightgray",
+                type="data",
+                array=performance[f"{main_metrics}_std"],
+                visible=True,
+            ),
+            marker_color="blue",
+            mode="markers+text",
+            text=[f"{v:.02f}" for v in performance[f"{main_metrics}_mean"]],
+            marker_size=8,
+            marker_symbol=marker_symbols[3],
+            # name=f"Full system {main_metrics}",
+            name=name_mapping(""),
+        ),
+    )
+    fig.update_traces(textposition="middle right")
+
+    fig.update_layout(
+        template=TEMPLATE,
+        font_family="Arial",
+        width=1280,
+        height=600,
+        xaxis_title="Label",
+        yaxis_title="Metrics",
+        showlegend=True,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    )
+    fig.add_annotation(
+        x=1,
+        y=1.05,
+        xref="paper",
+        yref="paper",
+        align="left",
+        text="n=5 independent experiments",
+        showarrow=False,
+    )
+    return fig
