@@ -9,7 +9,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.figure_factory as ff
 import plotly.graph_objects as go
-import umap
+# import umap
 from plotly.validators.scatter.marker import SymbolValidator
 from sklearn.manifold import TSNE
 import plotly.io as pio
@@ -26,10 +26,11 @@ FONT = "Arial"
 
 
 def arr_project(arrays, method="umap") -> np.ndarray:
-    if method == "umap":
-        reducer = umap.UMAP(n_components=2, random_state=0)
-    else:
-        reducer = TSNE(n_components=2, random_state=0)
+    # ! umap is not working
+    # if method == "umap":
+    #     reducer = umap.UMAP(n_components=2, random_state=0)
+    # else:
+    reducer = TSNE(n_components=2, random_state=0, init="pca", learning_rate='auto')
 
     return reducer.fit_transform(arrays)
 
@@ -163,12 +164,11 @@ def measure_slide_vectors(
     val_labels = [simplify_label(l) for l in val_full_label]
     val_names = val["index"]
     projection = arr_project(val_embed)
-    pred_probs: np.ndarray = knn.predict_proba(val_embed)
-    _df = proba_to_dfDict(pred_probs, classes_, val_labels)
+    # pred_probs: np.ndarray = knn.predict_proba(val_embed)
+    # _df = proba_to_dfDict(pred_probs, classes_, val_labels)
     preds = knn.predict(val_embed)
 
-    _df.update(
-        {
+    _df = {
             "D1": projection[:, 0],
             "D2": projection[:, 1],
             "label": val_labels,
@@ -178,8 +178,8 @@ def measure_slide_vectors(
             "correct": [
                 val_labels == preds for (val_labels, preds) in zip(val_labels, preds)
             ],
-        },
-    )
+        }
+    
     if val_entropy is not None:
         _df["pred_entropy"] = val_entropy
 
@@ -199,7 +199,6 @@ def measure_slide_vectors(
     return fig
 
 def plot_embedding(df: pd.DataFrame, marks = None):
-    df["label"] = df["label"]
     fig = px.scatter(
         df,
         x="D1",
@@ -207,14 +206,14 @@ def plot_embedding(df: pd.DataFrame, marks = None):
         color="label",
         hover_name="index",
         # symbol="correct",
-        hover_data=[
-            "pred",
-            "prob_top0",
-            "prob_top1",
-            "prob_top2",
-            "full_label",
-            "correct",
-        ],
+        # hover_data=[
+        #     "pred",
+        #     "prob_top0",
+        #     "prob_top1",
+        #     "prob_top2",
+        #     "full_label",
+        #     "correct",
+        # ],
     )
     if marks != None:
         df.set_index("index", inplace=True)

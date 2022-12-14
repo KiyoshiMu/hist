@@ -4,7 +4,6 @@ from pathlib import Path
 import random
 from typing import NamedTuple
 from typing import Sequence
-import numpy as np
 from sklearn.preprocessing import LabelEncoder
 
 import torch
@@ -41,7 +40,7 @@ class Subset(Dataset):
         self.labels = dataset.labels[indices]
         self.targets = dataset.targets[indices]
         self.slide_names = dataset.slide_names[indices]
-
+        
     def __getitem__(self, idx):
         if isinstance(idx, list):
             return self.dataset[[self.indices[i] for i in idx]]

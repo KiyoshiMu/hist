@@ -1,3 +1,4 @@
+from collections import Counter
 from itertools import chain
 import json
 from pathlib import Path
@@ -28,14 +29,18 @@ def mk_scaler(train_feat_pool, pca):
     scaler = StandardScaler()
     feature_samples = list(
         chain.from_iterable(
-            (sample_features(feat_pool, 96) for feat_pool in train_feat_pool)
+            (sample_features(feat_pool, THRESHOLD) for feat_pool in train_feat_pool)
         )
     )
     scaler.fit(pca.transform(feature_samples))
     return scaler
 
 def norm_prop(wsi_feats, scaler, pca):
-    return scaler.transform(pca.transform(wsi_feats)).mean(axis=0)
+    z_score = scaler.transform(pca.transform(wsi_feats))
+    mean = np.mean(z_score, axis=0)
+    max_ = np.max(z_score, axis=0)
+    min_ = np.min(z_score, axis=0)
+    return np.concatenate([mean, max_, min_], axis=None)
 
 def norm_pipe(wsi_feats):
     pca = mk_pca(wsi_feats)
@@ -56,14 +61,16 @@ def mk_pca(train_feat_pool):
     return pca
 
 
-BASE_DIR = "experiments1"
+BASE_DIR = "experiments4"
 
 
 class Planner:
-    def __init__(self, threshold=THRESHOLD) -> None:
+    def __init__(self, threshold=THRESHOLD, test_normal=True) -> None:
         self.base = Path(BASE_DIR)
         print(f"torch.cuda.is_available: {torch.cuda.is_available()}")
-        features = np.load("Data/features.npy", allow_pickle=True)
+        features = np.load("Data/all_vit_feats.npy", allow_pickle=True)
+        # features = np.load("Data/features.npy", allow_pickle=True)
+        self.test_normal = test_normal
         with open("Data/y_true.json", "r") as f:
             labels_raw = json.load(f)
             y_all = [i["label"] for i in labels_raw]
@@ -74,15 +81,24 @@ class Planner:
         _features = []
         _labels = []
         _slide_names = []
-        for index, feature in enumerate(features):
-            if len(feature) >= threshold and y_simple[index] != "OTHER":
-                _features.append(feature)
-                _labels.append(y_simple[index])
-                _slide_names.append(slide_names[index])
+        if test_normal:
+            for index, feature in enumerate(features):
+                if len(feature) >= threshold:
+                    _features.append(feature)
+                    label = "NORMAL" if y_simple[index] == "NORMAL" else "ABNORMAL"
+                    _labels.append(label)
+                    _slide_names.append(slide_names[index])
+        else:
+            for index, feature in enumerate(features):
+                if len(feature) >= threshold and y_simple[index] != "OTHER":
+                    _features.append(feature)
+                    _labels.append(y_simple[index])
+                    _slide_names.append(slide_names[index])
         self.features = _features
         self.slide_names = _slide_names
         self.labels = _labels
-
+        print(Counter(self.labels))
+        
     def run(self, n=5):
         sss = StratifiedShuffleSplit(n_splits=n, test_size=0.5, random_state=42)
         x = list(range(len(self.slide_names)))
@@ -130,7 +146,7 @@ class Planner:
         model_path = encoder_training(
             train_set,
             in_dim=in_dim,
-            num_epochs=250,
+            num_epochs=100 if self.test_normal else 250,
             num_workers=1,
             dst_dir=dst,
         )
@@ -208,7 +224,7 @@ class Planner:
         )
 
 def norm_exp(features, labels, slide_names):
-    BASE_DIR = "experiments1"
+    BASE_DIR = "experiments4"
     base = Path(BASE_DIR)
     for trial in range(5):
         dst_dir = base / f"trial{trial}"
@@ -227,7 +243,7 @@ def norm_exp(features, labels, slide_names):
         pkl_dst = str(dst_dir / "normTrain_pool.pkl")
         pkl_dump(dict(embed_pool=train_x, labels=train_y, index=train_slide_names), pkl_dst)
         
-        val_x = [norm_prop(feats, scaler, pca) for feats in val_feature]
+        val_x = np.array([norm_prop(feats, scaler, pca) for feats in val_feature])
         val_y = [labels[i] for i in val_indices]
         val_slide_names = [slide_names[i] for i in val_indices]
 
@@ -238,7 +254,7 @@ def norm_exp(features, labels, slide_names):
                 dst_dir / "normTrain_pool.pkl",
                 dst_dir / "normVal_pool.pkl",
                 mark="norm",
-                trial=trial,
+                trial=str(trial),
                 dummy_baseline=False,
                 dst=dst_dir,
             )
@@ -246,3 +262,4 @@ def norm_exp(features, labels, slide_names):
 if __name__ == "__main__":
     planner = Planner()
     planner.run()
+    norm_exp(planner.features, planner.labels, planner.slide_names)
