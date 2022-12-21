@@ -3,6 +3,7 @@ from itertools import chain
 import json
 from pathlib import Path
 from typing import Sequence
+from joblib import load
 from sklearn.decomposition import PCA
 from sklearn.model_selection import StratifiedShuffleSplit
 import numpy as np
@@ -64,39 +65,53 @@ def mk_pca(train_feat_pool):
 BASE_DIR = "experiments4"
 
 
+def data_loading(threshold=THRESHOLD, test_normal=True, kmeans_filter=True):
+    features = np.load("Data/all_vit_feats.npy", allow_pickle=True)
+    with open("Data/y_true.json", "r") as f:
+        labels_raw = json.load(f)
+        y_all = [i["label"] for i in labels_raw]
+        y_simple = [simplify_label(ls) for ls in y_all]
+    with open("Data/slide_names.json", "r") as f:
+        slide_names = json.load(f)
+
+    _features = []
+    _labels = []
+    _slide_names = []
+    if kmeans_filter:
+        kmeans = load("Data/vit_kmeans.joblib")
+        _tmp_features = []
+        for _feat in features:
+            if len(_feat) < threshold:
+                _tmp_features.append([])
+            else:
+                _tmp_features.append(_feat[kmeans.predict(_feat.astype(float)) == 0])
+        features = _tmp_features            
+        
+    if test_normal:
+        for index, feature in enumerate(features):
+            if len(feature) >= threshold:
+                _features.append(feature)
+                label = "NORMAL" if y_simple[index] == "NORMAL" else "ABNORMAL"
+                _labels.append(label)
+                _slide_names.append(slide_names[index])
+    else:
+        for index, feature in enumerate(features):
+            if len(feature) >= threshold and y_simple[index] != "OTHER":
+                _features.append(feature)
+                _labels.append(y_simple[index])
+                _slide_names.append(slide_names[index])
+                
+    return _features, _labels, _slide_names
+
 class Planner:
-    def __init__(self, threshold=THRESHOLD, test_normal=True) -> None:
+    def __init__(self, threshold=THRESHOLD, test_normal=True, kmeans_filter=False) -> None:
         self.base = Path(BASE_DIR)
         print(f"torch.cuda.is_available: {torch.cuda.is_available()}")
-        features = np.load("Data/all_vit_feats.npy", allow_pickle=True)
-        # features = np.load("Data/features.npy", allow_pickle=True)
-        self.test_normal = test_normal
-        with open("Data/y_true.json", "r") as f:
-            labels_raw = json.load(f)
-            y_all = [i["label"] for i in labels_raw]
-            y_simple = [simplify_label(ls) for ls in y_all]
-        with open("Data/slide_names.json", "r") as f:
-            slide_names = json.load(f)
-
-        _features = []
-        _labels = []
-        _slide_names = []
-        if test_normal:
-            for index, feature in enumerate(features):
-                if len(feature) >= threshold:
-                    _features.append(feature)
-                    label = "NORMAL" if y_simple[index] == "NORMAL" else "ABNORMAL"
-                    _labels.append(label)
-                    _slide_names.append(slide_names[index])
-        else:
-            for index, feature in enumerate(features):
-                if len(feature) >= threshold and y_simple[index] != "OTHER":
-                    _features.append(feature)
-                    _labels.append(y_simple[index])
-                    _slide_names.append(slide_names[index])
+        _features, _labels, _slide_names = data_loading(threshold, test_normal, kmeans_filter)
         self.features = _features
         self.slide_names = _slide_names
         self.labels = _labels
+        self.test_normal = test_normal
         print(Counter(self.labels))
         
     def run(self, n=5):
@@ -146,7 +161,7 @@ class Planner:
         model_path = encoder_training(
             train_set,
             in_dim=in_dim,
-            num_epochs=100 if self.test_normal else 250,
+            num_epochs=100 if self.test_normal else 150,
             num_workers=1,
             dst_dir=dst,
         )
@@ -258,8 +273,8 @@ def norm_exp(features, labels, slide_names):
                 dummy_baseline=False,
                 dst=dst_dir,
             )
-        
+
 if __name__ == "__main__":
-    planner = Planner()
+    planner = Planner(test_normal=False)
     planner.run()
     norm_exp(planner.features, planner.labels, planner.slide_names)
