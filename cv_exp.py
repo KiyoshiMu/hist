@@ -135,14 +135,14 @@ class Planner:
         )
         return model_path
     
-    def _load_xy_with_json(self, split_json_p: Path):
+    def _load_xy_with_json(self, split_json_p: Path, target="train"):
         with open(split_json_p, "r") as f:
             cache = json.load(f)
-            train_indices = cache["train"]
-        train_x = [self.features[i] for i in train_indices]
-        train_y = [self.labels[i] for i in train_indices]
-        train_slide_names = [self.slide_names[i] for i in train_indices]
-        return train_x, train_y, train_slide_names
+            indices = cache[target]
+        x = [self.features[i] for i in indices]
+        y = [self.labels[i] for i in indices]
+        slide_names = [self.slide_names[i] for i in indices]
+        return x, y, slide_names
     
     def make_embeddings(
         self,
@@ -151,21 +151,12 @@ class Planner:
         dst_dir: Path,
         trial: str,
     ):
-        with open(split_json_p, "r") as f:
-            cache = json.load(f)
-            train_indices = cache["train"]
-            val_indices = cache["val"]
-        train_feature = [self.features[i] for i in train_indices]
-        val_feature = [self.features[i] for i in val_indices]
+        train_x, train_y, train_slide_names = self._load_xy_with_json(split_json_p, target="train")
+        val_x, val_y, val_slide_names = self._load_xy_with_json(split_json_p, target="val")
 
-        train_x = train_feature
-        train_y = [self.labels[i] for i in train_indices]
-        train_slide_names = [self.slide_names[i] for i in train_indices]
+        in_dim = train_x[0].shape[1]
+       
         train_set = data.CustomImageDataset(train_x, train_y, train_slide_names)
-
-        val_x = val_feature
-        val_y = [self.labels[i] for i in val_indices]
-        val_slide_names = [self.slide_names[i] for i in val_indices]
         val_set = data.CustomImageDataset(val_x, val_y, val_slide_names)
 
         model = BagPooling.from_checkpoint(model_path, in_dim=in_dim)
