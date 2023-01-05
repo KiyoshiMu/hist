@@ -17,7 +17,7 @@ def norm_vs(
     mark="pool",
     trial="",
     dummy_baseline=True,
-    dst=Path("MULTI"),
+    dst=Path("MULTIpos"),
 ):
     dst.mkdir(exist_ok=True)
     train = pkl_load(train_pkl_p)
@@ -92,21 +92,22 @@ def plot(dst=Path("MULTI")):
         exp_df = df[df["exp"] == exp]
         box_fig = px.box(exp_df, x="target", y="f1-score", color="method")
         # save to jpg
-        box_fig.write_image(str(dst / f"{exp}.jpg"))
+        box_fig.write_image(str(dst / f"{exp}.jpg"), scale=2)
 
 
 if __name__ == "__main__":
-    # BASE_DIR = "experiments4"
-    # base = Path(BASE_DIR)
-    # for trial in range(5):
-    #     dst_dir = base / f"trial{trial}"
+    BASE_DIR = "experiments4 pos"
+    dst = Path("MULTIpos")
+    base = Path(BASE_DIR)
+    for trial in range(5):
+        dst_dir = base / f"trial{trial}"
 
-    #     norm_vs(
-    #         dst_dir / f"train{trial}_pool.pkl",
-    #         dst_dir / f"val{trial}_pool.pkl",
-    #         mark="pool",
-    #         trial=str(trial),
-    #         dummy_baseline=True,
-    #         dst=Path("MULTI"),
-    #     )
-    plot()
+        norm_vs(
+            dst_dir / f"train{trial}_pool.pkl",
+            dst_dir / f"val{trial}_pool.pkl",
+            mark="pool",
+            trial=str(trial),
+            dummy_baseline=True,
+            dst=dst,
+        )
+    plot(dst=dst)
