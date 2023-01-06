@@ -16,19 +16,19 @@ import numpy as np
 from PIL import Image, ImageOps
 
 
-def kmeans_filter(train_feat_pool, dst: Path):
-    k_means = mk_kmean(train_feat_pool)
+def kmeans_filter(train_feat_pool, patch_ps, dst: Path):
+    case0_feat = train_feat_pool[0].astype(float)
+    case0_ps = patch_ps[0]
+    np.save(dst / "case0_feat.npy", case0_feat)
+    np.save(dst / "case0_ps.npy", case0_ps)
+    # case0_feat = np.load("Data/kmeans_test/case0_feat.npy")
+    # case0_ps = np.load("Data/kmeans_test/case0_ps.npy")
+    
+    k_means = mk_kmean(train_feat_pool[1:])
     # save the kmeans model
     k_means_path = dst / "kmeans.joblib"
     joblib.dump(k_means, k_means_path)
     # show samples from each cluster
-
-    # case0_feat = train_feat_pool[0].astype(float)
-    # case0_ps = patch_ps[0]
-    # np.save(dst / "case0_feat.npy", case0_feat)
-    # np.save(dst / "case0_ps.npy", case0_ps)
-    case0_feat = np.load("Data/kmeans_test/case0_feat.npy")
-    case0_ps = np.load("Data/kmeans_test/case0_ps.npy")
 
     case_pred = k_means.predict(case0_feat)
     g0 = [case0_ps[i] for i in range(len(case0_ps)) if case_pred[i] == 0]
@@ -92,4 +92,5 @@ def _sample_patches(patch_ps):
 
 if __name__ == "__main__":
     features: np.ndarray = np.load("Data/all_vit_feats.npy", allow_pickle=True)
-    kmeans_filter(features, Path("Data/kmeans_test"))
+    patch_ps = np.load("Data/all_vit_patch_ps.npy", allow_pickle=True)
+    kmeans_filter(features,patch_ps, Path("Data/kmeans_test"), )

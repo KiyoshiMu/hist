@@ -19,8 +19,6 @@ random.seed(42)
 THRESHOLD = 96
 
 
-    
-
 def data_loading(
     feature_p="Data/all_vit_feats.npy",
     kmeans_p="Data/vit_kmeans.joblib",
@@ -63,8 +61,8 @@ class Planner:
     def __init__(
         self,
         base_dir: Path,
-        feature_p:str,
-        kmeans_p:str,
+        feature_p: str,
+        kmeans_p: str,
         threshold=THRESHOLD,
         kmeans_target: Optional[int] = None,
     ) -> None:
@@ -79,7 +77,10 @@ class Planner:
         self.base.mkdir(parents=True, exist_ok=True)
         print(f"torch.cuda.is_available: {torch.cuda.is_available()}")
         _features, _labels, _slide_names = data_loading(
-            feature_p=feature_p, kmeans_p=kmeans_p, threshold=threshold, kmeans_target=kmeans_target
+            feature_p=feature_p,
+            kmeans_p=kmeans_p,
+            threshold=threshold,
+            kmeans_target=kmeans_target,
         )
         self.features = _features
         self.slide_names = _slide_names
@@ -89,7 +90,7 @@ class Planner:
     def run(self, n=5):
         self.make_split(n)
         self.run_modeling(n)
-    
+
     def make_split(self, n=5):
         sss = StratifiedShuffleSplit(n_splits=n, test_size=0.5, random_state=42)
         x = list(range(len(self.slide_names)))
@@ -106,7 +107,7 @@ class Planner:
                     ),
                     f,
                 )
-                
+
     def run_modeling(self, n=5):
         for trial in range(n):
             dst_dir = self.base / f"trial{trial}"
@@ -119,7 +120,6 @@ class Planner:
                 str(trial),
             )
 
-    
     def train_model(self, split_json_p: Path, dst):
         train_x, train_y, train_slide_names = self._load_xy_with_json(split_json_p)
 
@@ -134,7 +134,7 @@ class Planner:
             dst_dir=dst,
         )
         return model_path
-    
+
     def _load_xy_with_json(self, split_json_p: Path, target="train"):
         with open(split_json_p, "r") as f:
             cache = json.load(f)
@@ -143,7 +143,7 @@ class Planner:
         y = [self.labels[i] for i in indices]
         slide_names = [self.slide_names[i] for i in indices]
         return x, y, slide_names
-    
+
     def make_embeddings(
         self,
         model_path: str,
@@ -151,11 +151,15 @@ class Planner:
         dst_dir: Path,
         trial: str,
     ):
-        train_x, train_y, train_slide_names = self._load_xy_with_json(split_json_p, target="train")
-        val_x, val_y, val_slide_names = self._load_xy_with_json(split_json_p, target="val")
+        train_x, train_y, train_slide_names = self._load_xy_with_json(
+            split_json_p, target="train"
+        )
+        val_x, val_y, val_slide_names = self._load_xy_with_json(
+            split_json_p, target="val"
+        )
 
         in_dim = train_x[0].shape[1]
-       
+
         train_set = data.CustomImageDataset(train_x, train_y, train_slide_names)
         val_set = data.CustomImageDataset(val_x, val_y, val_slide_names)
 
@@ -243,28 +247,43 @@ def norm_exp(features, labels, slide_names):
             dst=dst_dir,
         )
 
-def main(feature_p="Data/all_vit_feats.npy", dst: Path = Path("lab_vit")):
+
+def main(
+    feature_p="Data/all_vit_feats.npy",
+    patch_p="Data/all_vit_patch_ps.npy",
+    dst: Path = Path("lab_vit"),
+):
     dst.mkdir(exist_ok=True)
     features: np.ndarray = np.load(feature_p, allow_pickle=True)
+    patch_ps = np.load(patch_p, allow_pickle=True)
     # drop the first one as the first one is used for showing samples in [kmeans_filter]
+    kmeans_p = kmeans_filter(features, patch_ps, dst=dst)
     features = features[1:]
-    kmeans_p = kmeans_filter(features, dst=dst)
     exps = ("pos", "neg", "pos_neg")
     kmeans_targets = (0, 1, None)
     for idx, exp in enumerate(exps):
         base_dir = dst / exp
         planner = Planner(
-           base_dir=base_dir,
-           feature_p=feature_p,
-           kmeans_p=str(kmeans_p),
-              kmeans_target=kmeans_targets[idx],
+            base_dir=base_dir,
+            feature_p=feature_p,
+            kmeans_p=str(kmeans_p),
+            kmeans_target=kmeans_targets[idx],
         )
         planner.run()
-        
-    
-    
+
+
 if __name__ == "__main__":
-    main()
+    main(
+        feature_p="Data/features.npy",
+        patch_p="Data/all_patch_pss.npy",
+        dst=Path("lab_dense"),
+    )
+    main(
+        feature_p="Data/all_vit_feats.npy",
+        patch_p="Data/all_vit_patch_ps.npy",
+        dst=Path("lab_vit"),
+    )
+    
     # planner = Planner(test_normal=False, kmeans_target=1)
     # planner.run()
     # norm_exp(planner.features, planner.labels, planner.slide_names)

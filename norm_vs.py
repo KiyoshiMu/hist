@@ -59,9 +59,10 @@ def norm_vs(
                 dst / f"dummy_{target}_{trial}_metric.csv",
             )
 
+TARGETS = set(("ACL", "LPD", "MDS", "MPN", "PCN"))
 
 def plot(dst=Path("MULTI")):
-    csvs = list(dst.glob("*.csv"))
+    csvs = list(dst.rglob("*.csv"))
     targets = []
     methods = []
     value = []
@@ -69,6 +70,8 @@ def plot(dst=Path("MULTI")):
     for csv in csvs:
         parts = csv.stem.split("_")
         target = parts[1]
+        if target not in TARGETS:
+            continue
         method = parts[0]
         df = pd.read_csv(csv, index_col=0)
         fscore = df["fscore"].to_dict()
@@ -94,13 +97,9 @@ def plot(dst=Path("MULTI")):
         # save to jpg
         box_fig.write_image(str(dst / f"{exp}.jpg"), scale=2)
 
-
-if __name__ == "__main__":
-    BASE_DIR = "experiments4 pos"
-    dst = Path("MULTIpos")
-    base = Path(BASE_DIR)
+def main(base_dir:Path):
     for trial in range(5):
-        dst_dir = base / f"trial{trial}"
+        dst_dir = base_dir / f"trial{trial}"
 
         norm_vs(
             dst_dir / f"train{trial}_pool.pkl",
@@ -108,6 +107,15 @@ if __name__ == "__main__":
             mark="pool",
             trial=str(trial),
             dummy_baseline=True,
-            dst=dst,
+            dst=dst_dir,
         )
-    plot(dst=dst)
+    plot(dst=base_dir)
+
+if __name__ == "__main__":
+    from itertools import chain
+    base_dirs = list(chain((p for p in Path("lab_vit").iterdir() if p.is_dir()),
+                           (p for p in Path("lab_dense").iterdir() if p.is_dir())))
+    print(base_dirs)
+    for base_dir in base_dirs:
+        main(base_dir)
+    
