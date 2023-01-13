@@ -25,6 +25,27 @@ TEMPLATE = "plotly_white"
 FONT = "Arial"
 
 
+def box_plot(df, x, y):
+    fig = px.box(df, x=x, y=y, color=x, points="all")
+    fig.update_layout(
+        template=TEMPLATE,
+        font_family="Arial",
+        width=1280,
+        height=600,
+        showlegend=True,
+        boxgap=0.75,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    )
+    fig.add_annotation(
+        x=1,
+        y=1.02,
+        xref="paper",
+        yref="paper",
+        align="left",
+        text="n=5 independent experiments",
+        showarrow=False,
+    )
+    return fig
 def arr_project(arrays, method="umap") -> np.ndarray:
     # ! umap is not working
     # if method == "umap":
