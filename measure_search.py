@@ -124,8 +124,8 @@ if __name__ == "__main__":
     # df_search_raw = defaultdict(list)
     # df_f1_micro_raw = defaultdict(list)
     out = []
-    base = "experiments2"
-    base_dirs = list(chain((p for p in Path("lab_vit").iterdir() if p.is_dir())))
+    lab_dir = Path("lab_dense")
+    base_dirs = list(chain((p for p in lab_dir.iterdir() if p.is_dir())))
     print(base_dirs)
     for base_dir in base_dirs:
         name = base_dir.name
@@ -141,11 +141,11 @@ if __name__ == "__main__":
         part_df["Setting"] = _key
         out.append(part_df)
     df = pd.concat(out)
-    df.to_csv("search_quality.csv", index=False)
+    df.to_csv(lab_dir / "search_quality.csv", index=False)
     
     for mark in MARKS + ["Random"]:
         fig = box_plot(df.loc[df['Agg Method'] == mark], x="Setting", y="mAP@10")
-        fig.write_image(f"{mark} search quality.jpg", scale=3)
+        fig.write_image(lab_dir / f"{mark} search quality K.jpg", scale=3)
     # for trial in range(5):
     #     marks = ["Hopfield on Cell Bags",  "rHCT", "AvgPooling on Cell Bags",]
     #     for idx, mark in enumerate(marks) :

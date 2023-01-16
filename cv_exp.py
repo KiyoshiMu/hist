@@ -33,24 +33,35 @@ def data_loading(
     with open("Data/slide_names.json", "r") as f:
         slide_names = json.load(f)
 
-    keep_indices = [index for index, feature in enumerate(features) if len(feature) >= threshold and y_simple[index] != "OTHER"]
+    keep_indices = [
+        index
+        for index, feature in enumerate(features)
+        if len(feature) >= threshold and y_simple[index] != "OTHER"
+    ]
     _features = [features[index] for index in keep_indices]
     _labels = [y_simple[index] for index in keep_indices]
     _slide_names = [slide_names[index] for index in keep_indices]
 
     if kmeans_target is not None:
         kmeans = load(kmeans_p)
-        _features = [_padding_feature(_feat[kmeans.predict(_feat.astype(float)) == kmeans_target], threshold) for _feat in _features]
-    
+        _features = [
+            _padding_feature(
+                _feat[kmeans.predict(_feat.astype(float)) == kmeans_target], threshold
+            )
+            for _feat in _features
+        ]
+
     return _features, _labels, _slide_names
+
 
 def _padding_feature(feature, threshold):
     dim = feature.shape[1]
     if len(feature) < threshold:
         feature = np.concatenate(
-            [feature, np.zeros((threshold - len(feature), dim))], axis=0)
+            [feature, np.zeros((threshold - len(feature), dim))], axis=0
+        )
     return feature
-    
+
 
 class Planner:
     def __init__(
@@ -81,6 +92,7 @@ class Planner:
         self.slide_names = _slide_names
         self.labels = _labels
         print(Counter(self.labels))
+        print(f"Slide count: {len(self.slide_names)}")
 
     def run(self, n=5):
         self.make_split(n)
@@ -120,7 +132,9 @@ class Planner:
 
         in_dim = train_x[0].shape[1]
         print(f"in_dim: {in_dim}")
-        train_set = data.CustomImageDataset(train_x, train_y, train_slide_names, bag_size=THRESHOLD)
+        train_set = data.CustomImageDataset(
+            train_x, train_y, train_slide_names, bag_size=THRESHOLD
+        )
         model_path = encoder_training(
             train_set,
             in_dim=in_dim,
@@ -155,8 +169,12 @@ class Planner:
 
         in_dim = train_x[0].shape[1]
 
-        train_set = data.CustomImageDataset(train_x, train_y, train_slide_names, bag_size=THRESHOLD)
-        val_set = data.CustomImageDataset(val_x, val_y, val_slide_names, bag_size=THRESHOLD)
+        train_set = data.CustomImageDataset(
+            train_x, train_y, train_slide_names, bag_size=THRESHOLD
+        )
+        val_set = data.CustomImageDataset(
+            val_x, val_y, val_slide_names, bag_size=THRESHOLD
+        )
 
         model = BagPooling.from_checkpoint(model_path, in_dim=in_dim)
         embed_func = lambda ds: ds_embed(ds, model)
@@ -268,17 +286,21 @@ def main(
 
 
 if __name__ == "__main__":
+    main(
+        feature_p="Data/all_featuresK.npy",
+        patch_p="Data/all_featuresK_ps.npy",
+        dst=Path("lab_denseK"),
+    )
+    # main(
+    #     feature_p="Data/all_vit_feats.npy",
+    #     patch_p="Data/all_vit_patch_ps.npy",
+    #     dst=Path("lab_vit"),
+    # )
     # main(
     #     feature_p="Data/features.npy",
     #     patch_p="Data/all_patch_pss.npy",
     #     dst=Path("lab_dense"),
     # )
-    main(
-        feature_p="Data/all_vit_feats.npy",
-        patch_p="Data/all_vit_patch_ps.npy",
-        dst=Path("lab_vit"),
-    )
-    
     # planner = Planner(test_normal=False, kmeans_target=1)
     # planner.run()
     # norm_exp(planner.features, planner.labels, planner.slide_names)
