@@ -63,6 +63,4 @@ def simplify_label(labels: list[str]|str) -> str:
         return "LPD"
     if 'Myeloproliferative neoplasm' in labels:
         return 'MPN'
-    if 'Fibrosis' in labels:
-        return 'Fibrosis'.upper()
     return "OTHER"
