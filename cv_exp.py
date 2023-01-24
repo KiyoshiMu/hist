@@ -32,15 +32,15 @@ def data_loading(
         y_simple = [simplify_label(ls) for ls in y_all]
     with open("Data/slide_names.json", "r") as f:
         slide_names = json.load(f)
-
-    keep_indices = [
-        index
-        for index, feature in enumerate(features)
-        if len(feature) >= threshold and y_simple[index] != "OTHER"
+    _keep_indices = [
+        index for index, feature in enumerate(features) if len(feature) >= threshold
     ]
+    print("total features: ", len(_keep_indices))
+    keep_indices = [index for index in _keep_indices if y_simple[index] != "OTHER"]
     _features = [features[index] for index in keep_indices]
     _labels = [y_simple[index] for index in keep_indices]
     _slide_names = [slide_names[index] for index in keep_indices]
+    print("filtered features: ", len(_features))
 
     if kmeans_target is not None:
         kmeans = load(kmeans_p)
@@ -291,16 +291,16 @@ if __name__ == "__main__":
         patch_p="Data/all_featuresK_ps.npy",
         dst=Path("lab_denseK"),
     )
-    # main(
-    #     feature_p="Data/all_vit_feats.npy",
-    #     patch_p="Data/all_vit_patch_ps.npy",
-    #     dst=Path("lab_vit"),
-    # )
-    # main(
-    #     feature_p="Data/features.npy",
-    #     patch_p="Data/all_patch_pss.npy",
-    #     dst=Path("lab_dense"),
-    # )
+    main(
+        feature_p="Data/all_vit_feats.npy",
+        patch_p="Data/all_vit_patch_ps.npy",
+        dst=Path("lab_vit"),
+    )
+    main(
+        feature_p="Data/features.npy",
+        patch_p="Data/all_patch_pss.npy",
+        dst=Path("lab_dense"),
+    )
     # planner = Planner(test_normal=False, kmeans_target=1)
     # planner.run()
     # norm_exp(planner.features, planner.labels, planner.slide_names)

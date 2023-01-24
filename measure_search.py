@@ -9,6 +9,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import f1_score
 from pathlib import Path
+from itertools import chain
 
 from hist.io_utils import pkl_load, simplify_label
 from hist.plot import box_plot
@@ -70,7 +71,7 @@ def cal_search_quality(
 
 MARKS = ["Attention Pooling", "Average Pooling",]
 
-def main(base_dir:Path):
+def measure(base_dir:Path):
     df_search_raw = defaultdict(list)
     for trial in range(5):
         marks = MARKS
@@ -115,18 +116,13 @@ def main(base_dir:Path):
     df_search = pd.DataFrame(df_search_raw)
     df_search = pd.melt(df_search, var_name="Agg Method", value_name="mAP@10")
     return df_search
-    
 
-if __name__ == "__main__":
-    # from collections import defaultdict
-    from itertools import chain
-    from pathlib import Path
-    # df_search_raw = defaultdict(list)
-    # df_f1_micro_raw = defaultdict(list)
+def step(lab_dir:Path):
     out = []
-    lab_dir = Path("lab_dense")
     base_dirs = list(chain((p for p in lab_dir.iterdir() if p.is_dir())))
     print(base_dirs)
+    order = {"neg": 2, "pos": 0, "pos_neg": 1}
+    base_dirs.sort(key=lambda x: order[x.name])
     for base_dir in base_dirs:
         name = base_dir.name
         if name == "neg":
@@ -137,7 +133,7 @@ if __name__ == "__main__":
             _key = "Without K-Means"
         else:
             raise ValueError("Unknown name")
-        part_df = main(base_dir)
+        part_df = measure(base_dir)
         part_df["Setting"] = _key
         out.append(part_df)
     df = pd.concat(out)
@@ -146,6 +142,15 @@ if __name__ == "__main__":
     for mark in MARKS + ["Random"]:
         fig = box_plot(df.loc[df['Agg Method'] == mark], x="Setting", y="mAP@10")
         fig.write_image(lab_dir / f"{mark} search quality K.jpg", scale=3)
+
+if __name__ == "__main__":
+    # from collections import defaultdict
+
+    # df_search_raw = defaultdict(list)
+    # df_f1_micro_raw = defaultdict(list)
+    lab_dirs = [Path("lab_dense"), Path("lab_vit"), Path("lab_denseK")]
+    for lab_dir in lab_dirs:
+        step(lab_dir)
     # for trial in range(5):
     #     marks = ["Hopfield on Cell Bags",  "rHCT", "AvgPooling on Cell Bags",]
     #     for idx, mark in enumerate(marks) :

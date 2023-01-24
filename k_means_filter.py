@@ -8,17 +8,19 @@ from itertools import chain
 import random
 import joblib
 
-random.seed(42)
 from sklearn.cluster import KMeans
+from sklearn.preprocessing import minmax_scale
 from pathlib import Path
 from numpy import ndarray
 import numpy as np
 from PIL import Image, ImageOps
-
+import umap
 
 def kmeans_filter(train_feat_pool, patch_ps, dst: Path):
     case0_feat = train_feat_pool[0].astype(float)
     case0_ps = patch_ps[0]
+    patch_projection(case0_feat, case0_ps).save(dst / "case0_proj.jpg")
+    
     np.save(dst / "case0_feat.npy", case0_feat)
     np.save(dst / "case0_ps.npy", case0_ps)
     # case0_feat = np.load("Data/kmeans_test/case0_feat.npy")
@@ -32,12 +34,21 @@ def kmeans_filter(train_feat_pool, patch_ps, dst: Path):
 
     case_pred = k_means.predict(case0_feat)
     g0 = [case0_ps[i] for i in range(len(case0_ps)) if case_pred[i] == 0]
+    feat0 = [case0_feat[i] for i in range(len(case0_feat)) if case_pred[i] == 0]
     g1 = [case0_ps[i] for i in range(len(case0_ps)) if case_pred[i] == 1]
+    feat1 = [case0_feat[i] for i in range(len(case0_feat)) if case_pred[i] == 1]
+    patch_projection(feat0, g0).save(dst / "kmean_g0_proj.jpg")
+    patch_projection(feat1, g1).save(dst / "kmean_g1_proj.jpg")
+    
     _show_kmean_group(g0).save(dst / "kmean_g0.jpg")
     _show_kmean_group(g1).save(dst / "kmean_g1.jpg")
+    
+    
     return k_means_path
 
 def mk_kmean(train_feat_pool: ndarray):
+    random.seed(42)
+
     kmeans = KMeans(n_clusters=2, random_state=0)
     feature_samples = list(
         chain.from_iterable(
@@ -89,7 +100,41 @@ def _sample_patches(patch_ps):
 
     return canvas
 
+def patch_projection(feat_pool: list, ps:list[str], base = Path("Data/histo_tiles/19_0563_TR")):
+    random.seed(42)
 
+    SAMPLE_SIZE = 64
+    PATCH_SIZE = 64
+    CANVAS_SIZE = 1024
+    PLOT_MAX = CANVAS_SIZE - PATCH_SIZE
+    _ps = [base / n.split("/")[-1] for n in ps]
+    
+    reducer = umap.UMAP()
+    embedding = reducer.fit_transform(feat_pool)
+    embedding = minmax_scale(embedding)
+    canvas = Image.new("RGB", (CANVAS_SIZE, CANVAS_SIZE), color=(255, 255, 255))
+    # sample 
+    sample_indices = random.sample(range(len(ps)), SAMPLE_SIZE)
+    sample_ps = [_ps[i] for i in sample_indices]
+    sample_embedding = embedding[sample_indices]
+    for idx, patch_p in enumerate(sample_ps):
+        cell_img = Image.open(patch_p)
+        cell_img = ImageOps.fit(
+            cell_img, (PATCH_SIZE, PATCH_SIZE), method=Image.ANTIALIAS
+        )
+        col_loc = round(sample_embedding[idx][0] * PLOT_MAX)
+        row_loc = round(sample_embedding[idx][1] * PLOT_MAX)
+        canvas.paste(
+            cell_img,
+            (
+                col_loc,
+                row_loc,
+            ),
+        )
+        
+    return canvas
+    
+    
 if __name__ == "__main__":
     features: np.ndarray = np.load("Data/all_vit_feats.npy", allow_pickle=True)
     patch_ps = np.load("Data/all_vit_patch_ps.npy", allow_pickle=True)
