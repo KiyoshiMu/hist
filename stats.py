@@ -26,5 +26,7 @@ if __name__ == "__main__":
         df = pd.concat(out)
         # sort the columns to [Extraction, Agg Method, Setting, metric]
         df = df[["Extraction", "Agg Method", "Setting", metric]]
-        df.sort_values(by=metric, ascending=False, inplace=True)
-        df.to_latex(f"{name[:-4]}.lax", index=False)
+        df_pivot = df.pivot_table(index=["Extraction", "Agg Method"], columns=["Setting"], values=metric, aggfunc=lambda x: x)
+        # sort the columns to [With K-Means, Without K-Means, Negative K-Means]
+        df_pivot = df_pivot[["With K-Means", "Without K-Means", "Negative K-Means"]]
+        df_pivot.to_latex(f"{name[:-4]}.lax", index=True)
