@@ -166,11 +166,11 @@ def step(lab_dir:Path):
     f1_df.to_csv(lab_dir / "f1_micro.csv", index=False)
     
     for mark in MARKS + ["Random"]:
-        search_fig = box_plot(search_df.loc[search_df['Agg Method'] == mark], x="Setting", y="mAP@10")
-        search_fig.write_image(lab_dir / f"{mark} search quality K.jpg", scale=3)
+        search_fig = box_plot(search_df.loc[search_df['Agg Method'] == mark], x="Setting", y="mAP@10", y_range=[0.35, 0.52])
+        search_fig.write_image(lab_dir / f"{mark} search quality.pdf")
 
-        f1_fig = box_plot(f1_df.loc[f1_df['Agg Method'] == mark], x="Setting", y="Micro F1")
-        f1_fig.write_image(lab_dir / f"{mark} f1 micro K.jpg", scale=3)
+        f1_fig = box_plot(f1_df.loc[f1_df['Agg Method'] == mark], x="Setting", y="Micro F1", y_range=[0.3, 0.5])
+        f1_fig.write_image(lab_dir / f"{mark} f1 micro.pdf")
         
 if __name__ == "__main__":
     lab_dirs = [Path("lab_dense"), Path("lab_vit"), Path("lab_denseK")]

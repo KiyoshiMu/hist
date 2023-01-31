@@ -25,7 +25,7 @@ TEMPLATE = "plotly_white"
 FONT = "Arial"
 
 
-def box_plot(df, x, y):
+def box_plot(df, x, y, y_range=None):
     fig = px.box(df, x=x, y=y, color=x, points="all")
     fig.update_layout(
         template=TEMPLATE,
@@ -36,6 +36,8 @@ def box_plot(df, x, y):
         boxgap=0.75,
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
+    if y_range:
+        fig.update_yaxes(range=y_range)
     fig.add_annotation(
         x=1,
         y=1.02,

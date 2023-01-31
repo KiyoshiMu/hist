@@ -30,6 +30,7 @@ class FeatureExtractor:
         self.transform = eval_transforms()
 
     def extract_features(self, imgs):
+        # https://github.com/mahmoodlab/HIPT/blob/master/HIPT_4K/hipt_4k.py#L70
         imgs = torch.stack([self.transform(img) for img in imgs]).to(self.device)
         with torch.no_grad():
             features = self.model(imgs)
