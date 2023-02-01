@@ -40,22 +40,24 @@ class FeatureExtractor:
         img_ps = [p for p in img_ps if p.stat().st_size > SIZE_THRESH]
         features = []
         for i in tqdm(range(0, len(img_ps), batch_size)):
-            imgs = [
-                Image.open(p).resize((TARGET_SIZE, TARGET_SIZE))
-                for p in img_ps[i : i + batch_size]
-            ]
+            imgs = [Image.open(p) for p in img_ps[i : i + batch_size]]
             features.extend(self.extract_features(imgs).cpu().numpy())
         return np.array(features)
 
+
 # https://github.com/facebookresearch/dino/blob/main/eval_knn.py#L36
 def eval_transforms():
-    transform = pth_transforms.Compose([
-     pth_transforms.Resize(256, interpolation=3),
-        pth_transforms.ToTensor(),
-        pth_transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
-    ])
+    transform = pth_transforms.Compose(
+        [
+            # resize to 256x256 as Dino does
+            pth_transforms.Resize(
+                TARGET_SIZE, interpolation=pth_transforms.InterpolationMode.BICUBIC
+            ),
+            pth_transforms.ToTensor(),
+            pth_transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+        ]
+    )
     return transform
-
 
 
 if __name__ == "__main__":
@@ -69,10 +71,7 @@ if __name__ == "__main__":
     batch_size = args.batch_size
     _dir = args.dir
     for slide_dir in _dir.iterdir():
-        if (
-            not slide_dir.is_dir()
-            or not slide_dir.name.endswith("TR")
-        ):
+        if not slide_dir.is_dir() or not slide_dir.name.endswith("TR"):
             continue
         features = extractor.extract_features_from_dir(slide_dir, batch_size)
         with open(slide_dir / "dino_features.npy", "wb") as f:

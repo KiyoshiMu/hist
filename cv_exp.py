@@ -301,6 +301,3 @@ if __name__ == "__main__":
         patch_p="Data/all_patch_pss.npy",
         dst=Path("lab_dense"),
     )
-    # planner = Planner(test_normal=False, kmeans_target=1)
-    # planner.run()
-    # norm_exp(planner.features, planner.labels, planner.slide_names)
