@@ -286,18 +286,23 @@ def main(
 
 
 if __name__ == "__main__":
+    # main(
+    #     feature_p="Data/all_featuresK.npy",
+    #     patch_p="Data/all_featuresK_ps.npy",
+    #     dst=Path("lab_denseK"),
+    # )
+    # main(
+    #     feature_p="Data/all_vit_feats.npy",
+    #     patch_p="Data/all_vit_patch_ps.npy",
+    #     dst=Path("lab_vit"),
+    # )
+    # main(
+    #     feature_p="Data/features.npy",
+    #     patch_p="Data/all_patch_pss.npy",
+    #     dst=Path("lab_dense"),
+    # )
     main(
-        feature_p="Data/all_featuresK.npy",
-        patch_p="Data/all_featuresK_ps.npy",
-        dst=Path("lab_denseK"),
-    )
-    main(
-        feature_p="Data/all_vit_feats.npy",
+        feature_p="Data/all_dino_feats.npy",
         patch_p="Data/all_vit_patch_ps.npy",
-        dst=Path("lab_vit"),
-    )
-    main(
-        feature_p="Data/features.npy",
-        patch_p="Data/all_patch_pss.npy",
-        dst=Path("lab_dense"),
+        dst=Path("lab_dino"),
     )

@@ -173,6 +173,6 @@ def step(lab_dir:Path):
         f1_fig.write_image(lab_dir / f"{mark} f1 micro.pdf")
         
 if __name__ == "__main__":
-    lab_dirs = [Path("lab_dense"), Path("lab_vit"), Path("lab_denseK")]
+    lab_dirs = [Path("lab_dino"), Path("lab_dense"), Path("lab_vit"), Path("lab_denseK")]
     for lab_dir in lab_dirs:
         step(lab_dir)

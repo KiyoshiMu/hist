@@ -17,6 +17,6 @@ def draw_embedding(df_p, suffix="", write_pdf=False, write_html=False):
 
 
 if __name__ == "__main__":
-    draw_embedding("lab_denseK/pos/trial4/pool4.json", suffix="pos", write_pdf=True)
-    draw_embedding("lab_denseK/neg/trial4/pool4.json", suffix="neg", write_pdf=True)
-    draw_embedding("lab_denseK/pos_neg/trial4/pool4.json", suffix="pos_neg", write_pdf=True)
+    draw_embedding("lab_dino/pos/trial0/pool0.json", suffix="pos", write_pdf=True)
+    draw_embedding("lab_dino/neg/trial0/pool0.json", suffix="neg", write_pdf=True)
+    draw_embedding("lab_dino/pos_neg/trial0/pool0.json", suffix="pos_neg", write_pdf=True)

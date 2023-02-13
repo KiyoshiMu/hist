@@ -20,6 +20,7 @@ import umap
 from sklearn.utils import _safe_indexing
 from sklearn.metrics.cluster._unsupervised import check_number_of_labels
 
+
 def davies_bouldin_score(X, labels, metric="euclidean"):
     """Compute the Davies-Bouldin score.
 
@@ -67,9 +68,11 @@ def davies_bouldin_score(X, labels, metric="euclidean"):
         cluster_k = _safe_indexing(X, labels == k)
         centroid = cluster_k.mean(axis=0)
         centroids[k] = centroid
-        intra_dists[k] = np.average(pairwise_distances(cluster_k, [centroid], metric=metric))
+        intra_dists[k] = np.average(
+            pairwise_distances(cluster_k, [centroid], metric=metric)
+        )
 
-    centroid_distances = pairwise_distances(centroids,  metric=metric)
+    centroid_distances = pairwise_distances(centroids, metric=metric)
 
     if np.allclose(intra_dists, 0) or np.allclose(centroid_distances, 0):
         return 0.0
@@ -79,6 +82,7 @@ def davies_bouldin_score(X, labels, metric="euclidean"):
     scores = np.max(combined_intra_dists / centroid_distances, axis=1)
     return np.mean(scores)
 
+
 def pca_check(feat):
     """use pca the diversity of the features"""
     from sklearn.decomposition import PCA
@@ -87,16 +91,17 @@ def pca_check(feat):
     pca.fit(feat)
     return int(pca.n_components_)
 
+
 def kmeans_filter(train_feat_pool, patch_ps, dst: Path):
     case0_feat = train_feat_pool[0].astype(float)
     case0_ps = patch_ps[0]
     patch_projection(case0_feat, case0_ps).save(dst / "case0_proj.jpg")
-    
+
     np.save(dst / "case0_feat.npy", case0_feat)
     np.save(dst / "case0_ps.npy", case0_ps)
     # case0_feat = np.load("Data/kmeans_test/case0_feat.npy")
     # case0_ps = np.load("Data/kmeans_test/case0_ps.npy")
-    
+
     k_means, feature_samples = mk_kmean(train_feat_pool[1:])
     # save the kmeans model
     k_means_path = dst / "kmeans.joblib"
@@ -108,24 +113,29 @@ def kmeans_filter(train_feat_pool, patch_ps, dst: Path):
     case_pred = k_means.predict(case0_feat)
     db_score = davies_bouldin_score(case0_feat, case_pred)
     sil_score = silhouette_score(case0_feat, case_pred, metric="cosine")
-    
-    scores = {"db_score": db_score, "sil_score": sil_score, "n_components": n_components, "n_components_ratio": n_components_ratio}
+
+    scores = {
+        "db_score": db_score,
+        "sil_score": sil_score,
+        "n_components": n_components,
+        "n_components_ratio": n_components_ratio,
+    }
     print(scores)
     with open(dst / "cluster_scores.json", "w") as f:
         json.dump(scores, f)
-    
+
     g0 = [case0_ps[i] for i in range(len(case0_ps)) if case_pred[i] == 0]
     feat0 = [case0_feat[i] for i in range(len(case0_feat)) if case_pred[i] == 0]
     g1 = [case0_ps[i] for i in range(len(case0_ps)) if case_pred[i] == 1]
     feat1 = [case0_feat[i] for i in range(len(case0_feat)) if case_pred[i] == 1]
     patch_projection(feat0, g0).save(dst / "kmean_g0_proj.jpg")
     patch_projection(feat1, g1).save(dst / "kmean_g1_proj.jpg")
-    
+
     _show_kmean_group(g0).save(dst / "kmean_g0.jpg")
     _show_kmean_group(g1).save(dst / "kmean_g1.jpg")
-    
-    
+
     return k_means_path
+
 
 def mk_kmean(train_feat_pool: ndarray):
     random.seed(42)
@@ -162,7 +172,7 @@ def _sample_patches(patch_ps):
     HEIGHT = WIDTH
 
     canvas = Image.new("RGB", (WIDTH, HEIGHT), color=(255, 255, 255))
-    selected_patch_ps = random.sample(patch_ps, NUM * NUM)
+    selected_patch_ps = random.sample(patch_ps, min(NUM * NUM, len(patch_ps)))
 
     for idx, patch_p in enumerate(selected_patch_ps):
         cell_img = Image.open(patch_p)
@@ -181,7 +191,10 @@ def _sample_patches(patch_ps):
 
     return canvas
 
-def patch_projection(feat_pool: list, ps:list[str], base = Path("Data/histo_tiles/19_0563_TR")):
+
+def patch_projection(
+    feat_pool: list, ps: list[str], base=Path("Data/histo_tiles/19_0563_TR")
+):
     random.seed(42)
 
     SAMPLE_SIZE = 64
@@ -189,13 +202,13 @@ def patch_projection(feat_pool: list, ps:list[str], base = Path("Data/histo_tile
     CANVAS_SIZE = 1024
     PLOT_MAX = CANVAS_SIZE - PATCH_SIZE
     _ps = [base / n.split("/")[-1] for n in ps]
-    
+
     reducer = umap.UMAP()
     embedding = reducer.fit_transform(feat_pool)
     embedding = minmax_scale(embedding)
     canvas = Image.new("RGB", (CANVAS_SIZE, CANVAS_SIZE), color=(255, 255, 255))
-    # sample 
-    sample_indices = random.sample(range(len(ps)), SAMPLE_SIZE)
+    # sample
+    sample_indices = random.sample(range(len(ps)), min(SAMPLE_SIZE, len(ps)))
     sample_ps = [_ps[i] for i in sample_indices]
     sample_embedding = embedding[sample_indices]
     for idx, patch_p in enumerate(sample_ps):
@@ -212,11 +225,15 @@ def patch_projection(feat_pool: list, ps:list[str], base = Path("Data/histo_tile
                 row_loc,
             ),
         )
-        
+
     return canvas
-    
-    
+
+
 if __name__ == "__main__":
     features: np.ndarray = np.load("Data/all_vit_feats.npy", allow_pickle=True)
     patch_ps = np.load("Data/all_vit_patch_ps.npy", allow_pickle=True)
-    kmeans_filter(features,patch_ps, Path("Data/kmeans_test"), )
+    kmeans_filter(
+        features,
+        patch_ps,
+        Path("Data/kmeans_test"),
+    )
