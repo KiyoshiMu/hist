@@ -147,11 +147,11 @@ def step(lab_dir:Path):
     for base_dir in base_dirs:
         name = base_dir.name
         if name == "neg":
-            _key = "Negative K-Means"
+            _key = "With NKMF"
         elif name == "pos":
-            _key = "With K-Means"
+            _key = "With KMF"
         elif name == "pos_neg":
-            _key = "Without K-Means"
+            _key = "Without KMF"
         else:
             raise ValueError("Unknown name")
         part_search_df, part_f1_df = measure(base_dir)
