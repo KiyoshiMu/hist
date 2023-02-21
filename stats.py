@@ -43,13 +43,17 @@ def merge():
         df_record = pd.concat(records_)
         df_record.to_csv(f"{name[:-4]}_record.csv", index=False)
 
-def p_test():
+def p_test_bgp():
     names = ["search_quality", "f1_micro"]
     metrics  = ["mAP@10", "Micro F1"]
     agg_methods = ["Average Pooling", "Attention Pooling"]
     extraction_methods = ["ViT-16/256", "KimiaNet", "DenseNet", "DINO"]
-    settings = ["With K-Means", "Without K-Means"]
+    # settings = ["With K-Means", "Without K-Means"]
+    
+    settings = ["With K-Means", "Negative K-Means"]
     for name, metric in zip(names, metrics):
+        means = []
+        diffs = []
         print(f"=================={name}==================")
         df = pd.read_csv(f"{name}_record.csv")
         # stat t test cross between different Agg Method and Setting
@@ -59,12 +63,46 @@ def p_test():
                 gS1 = df[(df["Agg Method"] == agg_method) & (df["Extraction"] == extraction) & (df["Setting"] == settings[1])][metric].to_numpy()
                 diff_s0_s1 = gS0 - gS1
                 p = ttest_1samp(diff_s0_s1, 0, alternative='greater').pvalue
-                if p > 0.05:
+                if p < 0.05:
                     print(f"{agg_method} {extraction} {settings[0]} vs {settings[1]}: {p}")
-                    effect = (diff_s0_s1 > 0).sum()
-                    mean_diff = (gS0.mean() - gS1.mean()) / gS1.mean()
-                    print(f"Effect: {effect}, Mean Diff: {mean_diff:.3f}")
-
+                effect = (diff_s0_s1 > 0).sum()
+                diff = diff_s0_s1.mean()
+                diffs.append(diff)
+                mean_diff = (gS0.mean() - gS1.mean()) / gS1.mean()
+                means.append(mean_diff)
+                # print(f"Effect: {effect}, Mean Diff: {mean_diff:.3f}")
+        print(f"Abs Diff mean: {np.mean(diffs):.3f}")
+        print(f"Mean Diff%: {np.mean(means):.3f}")
+        
+def p_test_dino():
+    names = ["search_quality", "f1_micro"]
+    metrics  = ["mAP@10", "Micro F1"]
+    agg_method = "Attention Pooling"
+    target = "DINO"
+    extraction_methods = ["ViT-16/256", "KimiaNet", "DenseNet"]    
+    setting = "With K-Means" 
+    for name, metric in zip(names, metrics):
+        means = []
+        diffs = []
+        print(f"=================={name}==================")
+        df = pd.read_csv(f"{name}_record.csv")
+        # stat t test cross between different Agg Method and Setting
+        for extraction in extraction_methods:
+            gS0 = df[(df["Agg Method"] == agg_method) & (df["Extraction"] == target) & (df["Setting"] == setting)][metric].to_numpy()
+            gS1 = df[(df["Agg Method"] == agg_method) & (df["Extraction"] == extraction) & (df["Setting"] == setting)][metric].to_numpy()
+            diff_s0_s1 = gS0 - gS1
+            p = ttest_1samp(diff_s0_s1, 0, alternative='greater').pvalue
+            if p < 0.05:
+                print(f"{agg_method} {target}  vs {extraction}: {p}")
+            effect = (diff_s0_s1 > 0).sum()
+            diff = diff_s0_s1.mean()
+            diffs.append(diff)
+            mean_diff = (gS0.mean() - gS1.mean()) / gS1.mean()
+            means.append(mean_diff)
+            print(f"Effect: {effect}, Mean Diff: {mean_diff:.3f}, Abs diff: {diff:.3f}")
+        print(f"Abs Diff mean: {np.mean(diffs):.3f}")
+        print(f"Mean Diff%: {np.mean(means):.3f}")
 if __name__ == "__main__":
     # merge()
-    p_test()
+    # p_test_bgp()
+    p_test_dino()

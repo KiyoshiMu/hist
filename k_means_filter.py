@@ -19,6 +19,9 @@ from PIL import Image, ImageOps
 import umap
 from sklearn.utils import _safe_indexing
 from sklearn.metrics.cluster._unsupervised import check_number_of_labels
+import plotly.graph_objects as go
+import plotly.io as pio
+pio.kaleido.scope.mathjax = None
 
 
 def davies_bouldin_score(X, labels, metric="euclidean"):
@@ -150,7 +153,36 @@ def mk_kmean(train_feat_pool: ndarray):
     kmeans = kmeans.fit(feature_samples)
     return kmeans, feature_samples
 
-
+def proj_dots(train_feat_pool: ndarray, dst_p: str):
+    # project the embedding to 2d as dots
+    random.seed(42)
+    feature_samples = list(
+        chain.from_iterable(
+            (_sample_features(feat_pool, 16) for feat_pool in train_feat_pool[1:])
+        )
+    )
+    reducer = umap.UMAP()
+    embedding = reducer.fit_transform(feature_samples)
+    # draw the dots
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            x=embedding[:, 0],
+            y=embedding[:, 1],
+            mode="markers",
+            marker=dict(color="black", size=1),
+        )
+    )
+    # no axis, no background
+    fig.update_layout(
+        xaxis=dict(visible=False),
+        yaxis=dict(visible=False),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+    )
+    
+    fig.write_image(dst_p)
+        
 def _sample_features(features, n: int):
     if n >= len(features):
         return features
@@ -230,10 +262,14 @@ def patch_projection(
 
 
 if __name__ == "__main__":
-    features: np.ndarray = np.load("Data/all_vit_feats.npy", allow_pickle=True)
-    patch_ps = np.load("Data/all_vit_patch_ps.npy", allow_pickle=True)
-    kmeans_filter(
-        features,
-        patch_ps,
-        Path("Data/kmeans_test"),
-    )
+    for p in ["Data/all_vit_feats.npy", "Data/all_featuresK.npy", "Data/all_dino_feats.npy", "Data/features.npy"]:
+        features: np.ndarray = np.load(p, allow_pickle=True)
+        dst_p = Path("Data/kmeans_test") /f'{p.split("/")[-1].split(".")[0]}.pdf'
+        proj_dots(features, str(dst_p))
+    # patch_ps = np.load("Data/all_vit_patch_ps.npy", allow_pickle=True)
+    # kmeans_filter(
+    #     features,
+    #     patch_ps,
+    #     Path("Data/kmeans_test"),
+    # )
+    
