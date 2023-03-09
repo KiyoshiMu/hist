@@ -1,6 +1,6 @@
-# Improved whole slide image representation with minimal human intervention
+# Domain-General vs. Domain-Specific Pre-trained Models: Binary Patch Grouping for Improved WSI Representation
 
-This a Github Repo hosting custom codes for the paper "*Improved whole slide image representation with minimal human intervention*".
+This a Github Repo hosting custom codes for the paper "*Domain-General vs. Domain-Specific Pre-trained Models: Binary Patch Grouping for Improved WSI Representation*".
 
 ## System requirements
 
@@ -68,7 +68,7 @@ Python Dependencies:
 
 1. Aggregation
 
-    KMF: [k_means_filter.py](k_means_filter.py)
+    BPG: [k_means_filter.py](k_means_filter.py)
 
     Pipeline: [cv_exp.py](cv_exp.py)
 
@@ -84,10 +84,10 @@ Python Dependencies:
 
 **You need first to contact the corresponding author to get the files**
 
-all_vit_feats.npy:  https://github.com/mahmoodlab/HIPT ViT on 256x256
+all_vit_feats.npy from https://github.com/mahmoodlab/HIPT ViT on 256x256
 
-all_featuresK.npy: KimiaNet on 512x512
+all_featuresK.npy from https://kimialab.uwaterloo.ca/kimia/index.php/data-and-code-2/kimia-net KimiaNet on 512x512
 
-features.npy: DenseNet121 on 512x512
+features.npy from https://github.com/huggingface/pytorch-image-models DenseNet121 on 512x512
 
-all_dino_feats.npy: https://github.com/facebookresearch/dino ViT on 256x256
+all_dino_feats.npy from https://github.com/facebookresearch/dino ViT on 256x256

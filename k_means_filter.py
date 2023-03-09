@@ -106,6 +106,7 @@ def kmeans_filter(train_feat_pool, patch_ps, dst: Path):
     # case0_ps = np.load("Data/kmeans_test/case0_ps.npy")
 
     k_means, feature_samples = mk_kmean(train_feat_pool[1:])
+    
     # save the kmeans model
     k_means_path = dst / "kmeans.joblib"
     joblib.dump(k_means, k_means_path)
@@ -266,10 +267,10 @@ if __name__ == "__main__":
         features: np.ndarray = np.load(p, allow_pickle=True)
         dst_p = Path("Data/kmeans_test") /f'{p.split("/")[-1].split(".")[0]}.pdf'
         proj_dots(features, str(dst_p))
-    # patch_ps = np.load("Data/all_vit_patch_ps.npy", allow_pickle=True)
-    # kmeans_filter(
-    #     features,
-    #     patch_ps,
-    #     Path("Data/kmeans_test"),
-    # )
+    patch_ps = np.load("Data/all_vit_patch_ps.npy", allow_pickle=True)
+    kmeans_filter(
+        features,
+        patch_ps,
+        Path("Data/kmeans_test"),
+    )
     
