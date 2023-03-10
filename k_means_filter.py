@@ -10,15 +10,12 @@ import random
 import joblib
 
 from sklearn.cluster import KMeans
-from sklearn.preprocessing import LabelEncoder, minmax_scale
-from sklearn.metrics import pairwise_distances, silhouette_score
+from sklearn.preprocessing import minmax_scale
 from pathlib import Path
 from numpy import ndarray
 import numpy as np
 from PIL import Image, ImageOps
 import umap
-from sklearn.utils import _safe_indexing
-from sklearn.metrics.cluster._unsupervised import check_number_of_labels
 import plotly.graph_objects as go
 import plotly.io as pio
 pio.kaleido.scope.mathjax = None
