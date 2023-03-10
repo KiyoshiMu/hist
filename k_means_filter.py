@@ -24,66 +24,6 @@ import plotly.io as pio
 pio.kaleido.scope.mathjax = None
 
 
-def davies_bouldin_score(X, labels, metric="euclidean"):
-    """Compute the Davies-Bouldin score.
-
-    The score is defined as the average similarity measure of each cluster with
-    its most similar cluster, where similarity is the ratio of within-cluster
-    distances to between-cluster distances. Thus, clusters which are farther
-    apart and less dispersed will result in a better score.
-
-    The minimum score is zero, with lower values indicating better clustering.
-
-    Read more in the :ref:`User Guide <davies-bouldin_index>`.
-
-    .. versionadded:: 0.20
-
-    Parameters
-    ----------
-    X : array-like of shape (n_samples, n_features)
-        A list of ``n_features``-dimensional data points. Each row corresponds
-        to a single data point.
-
-    labels : array-like of shape (n_samples,)
-        Predicted labels for each sample.
-
-    Returns
-    -------
-    score: float
-        The resulting Davies-Bouldin score.
-
-    References
-    ----------
-    .. [1] Davies, David L.; Bouldin, Donald W. (1979).
-       `"A Cluster Separation Measure"
-       <https://ieeexplore.ieee.org/document/4766909>`__.
-       IEEE Transactions on Pattern Analysis and Machine Intelligence.
-       PAMI-1 (2): 224-227
-    """
-    le = LabelEncoder()
-    labels = le.fit_transform(labels)
-    n_samples, _ = X.shape
-    n_labels = len(le.classes_)
-    check_number_of_labels(n_labels, n_samples)
-    intra_dists = np.zeros(n_labels)
-    centroids = np.zeros((n_labels, len(X[0])), dtype=float)
-    for k in range(n_labels):
-        cluster_k = _safe_indexing(X, labels == k)
-        centroid = cluster_k.mean(axis=0)
-        centroids[k] = centroid
-        intra_dists[k] = np.average(
-            pairwise_distances(cluster_k, [centroid], metric=metric)
-        )
-
-    centroid_distances = pairwise_distances(centroids, metric=metric)
-
-    if np.allclose(intra_dists, 0) or np.allclose(centroid_distances, 0):
-        return 0.0
-
-    centroid_distances[centroid_distances == 0] = np.inf
-    combined_intra_dists = intra_dists[:, None] + intra_dists
-    scores = np.max(combined_intra_dists / centroid_distances, axis=1)
-    return np.mean(scores)
 
 
 def pca_check(feat):
@@ -115,12 +55,8 @@ def kmeans_filter(train_feat_pool, patch_ps, dst: Path):
     # show samples from each cluster
 
     case_pred = k_means.predict(case0_feat)
-    db_score = davies_bouldin_score(case0_feat, case_pred)
-    sil_score = silhouette_score(case0_feat, case_pred, metric="cosine")
 
     scores = {
-        "db_score": db_score,
-        "sil_score": sil_score,
         "n_components": n_components,
         "n_components_ratio": n_components_ratio,
     }
