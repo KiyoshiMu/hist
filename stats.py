@@ -15,7 +15,7 @@ def step(p, mark=None, metric="mAP@10"):
     if mark is not None:
         groups["Extraction"] = mark
         _df["Extraction"] = mark
-    # groups.to_latex(Path(p).parent / "search_quality.tex", index=False)
+
     return groups, _df
 
 def merge():
@@ -36,8 +36,8 @@ def merge():
         # sort the columns to [Extraction, Agg Method, Setting, metric]
         df_metrics = df_metrics[["Extraction", "Agg Method", "Setting", metric]]
         df_pivot = df_metrics.pivot_table(index=["Extraction", "Agg Method"], columns=["Setting"], values=metric, aggfunc=lambda x: x)
-        # sort the columns to [With K-Means, Without K-Means, Negative K-Means]
-        df_pivot = df_pivot[["With K-Means", "Without K-Means", "Negative K-Means"]]
+        # sort the columns to ["With BPG", "Without BPG", "Negative NBPG"]
+        df_pivot = df_pivot[["With BPG", "Without BPG", "With NBPG"]]
         df_pivot.to_latex(f"{name[:-4]}.lax", index=True)
         
         df_record = pd.concat(records_)
@@ -48,9 +48,9 @@ def p_test_bgp():
     metrics  = ["mAP@10", "Micro F1"]
     agg_methods = ["Average Pooling", "Attention Pooling"]
     extraction_methods = ["ViT-16/256", "KimiaNet", "DenseNet", "DINO"]
-    # settings = ["With K-Means", "Without K-Means"]
+    settings = ["With BPG", "Without BPG"]
     
-    settings = ["With K-Means", "Negative K-Means"]
+    # settings = ["With BPG", "With NBPG"]
     for name, metric in zip(names, metrics):
         means = []
         diffs = []
@@ -65,12 +65,11 @@ def p_test_bgp():
                 p = ttest_1samp(diff_s0_s1, 0, alternative='greater').pvalue
                 if p < 0.05:
                     print(f"{agg_method} {extraction} {settings[0]} vs {settings[1]}: {p}")
-                effect = (diff_s0_s1 > 0).sum()
                 diff = diff_s0_s1.mean()
                 diffs.append(diff)
                 mean_diff = (gS0.mean() - gS1.mean()) / gS1.mean()
                 means.append(mean_diff)
-                # print(f"Effect: {effect}, Mean Diff: {mean_diff:.3f}")
+                
         print(f"Abs Diff mean: {np.mean(diffs):.3f}")
         print(f"Mean Diff%: {np.mean(means):.3f}")
         
@@ -80,7 +79,7 @@ def p_test_dino():
     agg_method = "Attention Pooling"
     target = "DINO"
     extraction_methods = ["ViT-16/256", "KimiaNet", "DenseNet"]    
-    setting = "With K-Means" 
+    setting = "With BPG" 
     for name, metric in zip(names, metrics):
         means = []
         diffs = []
@@ -103,6 +102,6 @@ def p_test_dino():
         print(f"Abs Diff mean: {np.mean(diffs):.3f}")
         print(f"Mean Diff%: {np.mean(means):.3f}")
 if __name__ == "__main__":
-    # merge()
-    # p_test_bgp()
+    merge()
+    p_test_bgp()
     p_test_dino()

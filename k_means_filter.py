@@ -18,9 +18,8 @@ from PIL import Image, ImageOps
 import umap
 import plotly.graph_objects as go
 import plotly.io as pio
+
 pio.kaleido.scope.mathjax = None
-
-
 
 
 def pca_check(feat):
@@ -32,7 +31,15 @@ def pca_check(feat):
     return int(pca.n_components_)
 
 
-def kmeans_filter(train_feat_pool, patch_ps, dst: Path):
+def kmeans_filter(
+    train_feat_pool,
+    patch_ps,
+    dst: Path,
+    case0_patch_dir=Path("Data/histo_tiles/19_0563_TR"),
+):
+    """
+    case0_patch_dir is for visualization where the patch images are located
+    """
     case0_feat = train_feat_pool[0].astype(float)
     case0_ps = patch_ps[0]
     patch_projection(case0_feat, case0_ps).save(dst / "case0_proj.jpg")
@@ -43,7 +50,7 @@ def kmeans_filter(train_feat_pool, patch_ps, dst: Path):
     # case0_ps = np.load("Data/kmeans_test/case0_ps.npy")
 
     k_means, feature_samples = mk_kmean(train_feat_pool[1:])
-    
+
     # save the kmeans model
     k_means_path = dst / "kmeans.joblib"
     joblib.dump(k_means, k_means_path)
@@ -65,11 +72,13 @@ def kmeans_filter(train_feat_pool, patch_ps, dst: Path):
     feat0 = [case0_feat[i] for i in range(len(case0_feat)) if case_pred[i] == 0]
     g1 = [case0_ps[i] for i in range(len(case0_ps)) if case_pred[i] == 1]
     feat1 = [case0_feat[i] for i in range(len(case0_feat)) if case_pred[i] == 1]
-    patch_projection(feat0, g0).save(dst / "kmean_g0_proj.jpg")
-    patch_projection(feat1, g1).save(dst / "kmean_g1_proj.jpg")
+    # the patches visualized as projection
+    patch_projection(feat0, g0, base=case0_patch_dir).save(dst / "kmean_g0_proj.jpg")
+    patch_projection(feat1, g1, base=case0_patch_dir).save(dst / "kmean_g1_proj.jpg")
 
-    _show_kmean_group(g0).save(dst / "kmean_g0.jpg")
-    _show_kmean_group(g1).save(dst / "kmean_g1.jpg")
+    # the patches visualized as grid
+    _show_kmean_group(g0, base=case0_patch_dir).save(dst / "kmean_g0.jpg")
+    _show_kmean_group(g1, base=case0_patch_dir).save(dst / "kmean_g1.jpg")
 
     return k_means_path
 
@@ -87,36 +96,7 @@ def mk_kmean(train_feat_pool: ndarray):
     kmeans = kmeans.fit(feature_samples)
     return kmeans, feature_samples
 
-def proj_dots(train_feat_pool: ndarray, dst_p: str):
-    # project the embedding to 2d as dots
-    random.seed(42)
-    feature_samples = list(
-        chain.from_iterable(
-            (_sample_features(feat_pool, 16) for feat_pool in train_feat_pool[1:])
-        )
-    )
-    reducer = umap.UMAP()
-    embedding = reducer.fit_transform(feature_samples)
-    # draw the dots
-    fig = go.Figure()
-    fig.add_trace(
-        go.Scatter(
-            x=embedding[:, 0],
-            y=embedding[:, 1],
-            mode="markers",
-            marker=dict(color="black", size=1),
-        )
-    )
-    # no axis, no background
-    fig.update_layout(
-        xaxis=dict(visible=False),
-        yaxis=dict(visible=False),
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-    )
-    
-    fig.write_image(dst_p)
-        
+
 def _sample_features(features, n: int):
     if n >= len(features):
         return features
@@ -124,8 +104,7 @@ def _sample_features(features, n: int):
     return (features[i] for i in indices)
 
 
-def _show_kmean_group(g0_names):
-    base = Path("Data/histo_tiles/19_0563_TR")
+def _show_kmean_group(g0_names, base=Path("Data/histo_tiles/19_0563_TR")):
     sample_g0_ps = [base / n.split("/")[-1] for n in g0_names]
     return _sample_patches(sample_g0_ps)
 
@@ -196,14 +175,18 @@ def patch_projection(
 
 
 if __name__ == "__main__":
-    for p in ["Data/all_vit_feats.npy", "Data/all_featuresK.npy", "Data/all_dino_feats.npy", "Data/features.npy"]:
-        features: np.ndarray = np.load(p, allow_pickle=True)
-        dst_p = Path("Data/kmeans_test") /f'{p.split("/")[-1].split(".")[0]}.pdf'
-        proj_dots(features, str(dst_p))
     patch_ps = np.load("Data/all_vit_patch_ps.npy", allow_pickle=True)
-    kmeans_filter(
-        features,
-        patch_ps,
-        Path("Data/kmeans_test"),
-    )
-    
+    for p in [
+        "Data/all_vit_feats.npy",
+        "Data/all_featuresK.npy",
+        "Data/all_dino_feats.npy",
+        "Data/features.npy",
+    ]:
+        features: np.ndarray = np.load(p, allow_pickle=True)
+        dst_p = Path("Data/kmeans_test") / p.split("/")[-1].split(".")[0]
+        dst_p.mkdir(parents=True, exist_ok=True)
+        kmeans_filter(
+            features,
+            patch_ps,
+            dst_p,
+        )

@@ -35,12 +35,12 @@ def data_loading(
     _keep_indices = [
         index for index, feature in enumerate(features) if len(feature) >= threshold
     ]
-    print("total features: ", len(_keep_indices))
+    print("total WSI count: ", len(_keep_indices))
     keep_indices = [index for index in _keep_indices if y_simple[index] != "OTHER"]
     _features = [features[index] for index in keep_indices]
     _labels = [y_simple[index] for index in keep_indices]
     _slide_names = [slide_names[index] for index in keep_indices]
-    print("filtered features: ", len(_features))
+    print("filtered WSI count: ", len(_features))
 
     if kmeans_target is not None:
         kmeans = load(kmeans_p)
@@ -262,47 +262,52 @@ def norm_exp(features, labels, slide_names):
 
 
 def main(
+    label_mappings,
     feature_p="Data/all_vit_feats.npy",
-    patch_p="Data/all_vit_patch_ps.npy",
     dst: Path = Path("lab_vit"),
+    kmeans_p="Data/kmeans_test/all_vit_feats/kmeans.joblib",
 ):
     dst.mkdir(exist_ok=True)
     features: np.ndarray = np.load(feature_p, allow_pickle=True)
-    patch_ps = np.load(patch_p, allow_pickle=True)
     # drop the first one as the first one is used for showing samples in [kmeans_filter]
-    kmeans_p = kmeans_filter(features, patch_ps, dst=dst)
     features = features[1:]
-    exps = ("pos", "neg", "pos_neg")
-    kmeans_targets = (0, 1, None)
-    for idx, exp in enumerate(exps):
+
+    for exp, kmeans_target in label_mappings.items():
         base_dir = dst / exp
         planner = Planner(
             base_dir=base_dir,
             feature_p=feature_p,
             kmeans_p=str(kmeans_p),
-            kmeans_target=kmeans_targets[idx],
+            kmeans_target=kmeans_target,
         )
         planner.run()
 
 
 if __name__ == "__main__":
+    # if kmean_g0 is ROI, kmean_g1 is non-ROI, then set {pos: 0, neg: 1, pos_neg: None}
+    # if kmean_g0 is non-ROI, kmean_g1 is ROI, then set {pos: 1, neg: 0, pos_neg: None}
+
     # main(
+    #     {"pos": 0, "neg": 1, "pos_neg": None},
     #     feature_p="Data/all_featuresK.npy",
-    #     patch_p="Data/all_featuresK_ps.npy",
+    #     kmeans_p="Data/kmeans_test/all_featuresK/kmeans.joblib",
     #     dst=Path("lab_denseK"),
     # )
     # main(
+    #     {"pos": 0, "neg": 1, "pos_neg": None},
     #     feature_p="Data/all_vit_feats.npy",
-    #     patch_p="Data/all_vit_patch_ps.npy",
+    #     kmeans_p="Data/kmeans_test/all_vit_feats/kmeans.joblib",
     #     dst=Path("lab_vit"),
     # )
     # main(
+    #     {"pos": 0, "neg": 1, "pos_neg": None},
     #     feature_p="Data/features.npy",
-    #     patch_p="Data/all_patch_pss.npy",
+    #     kmeans_p="Data/kmeans_test/features/kmeans.joblib",
     #     dst=Path("lab_dense"),
     # )
     main(
+        {"pos": 0, "neg": 1, "pos_neg": None},
         feature_p="Data/all_dino_feats.npy",
-        patch_p="Data/all_vit_patch_ps.npy",
-        dst=Path("lab_dino"),
+        kmeans_p="Data/kmeans_test/all_dino_feats/kmeans.joblib",
+        dst=Path("lab_dino0"),
     )
