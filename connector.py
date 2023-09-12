@@ -29,7 +29,7 @@ def main(feature_p, ps_p, kmeans_p, threshold=64):
         wsi_p = Path(ps[idx][0])
         wsi_name = wsi_p.parent.name
         pred = kmeans.predict(wsi_feats.astype(float))
-        base.append({"wsi_name": wsi_name, "kmean_preds": pred, "features": wsi_feats})
+        base.append({"wsi_name": wsi_name, "kmeans_preds": pred, "features": wsi_feats})
         # wsi_name is a string; 
         # kmean_preds is a list of cluster predict (0 or 1);
         # features is a list of list, [patch0_features, patch1_features ..]
@@ -54,3 +54,11 @@ if __name__ == "__main__":
     # python connector.py --feature_path Data/all_vit_feats.npy --ps_path Data/all_vit_patch_ps.npy --kmeans_path Data/kmeans_test/all_vit_feats/kmeans.joblib
     # data = np.load("Data/all_vit_feats_clean.npy", allow_pickle=True)
     # print(data[0]["features"].shape)
+    
+    # get the first wsi's features
+    # kmeans_pred = data[0]["kmeans_preds"]
+    # features = data[0]["features"]
+    # cluster0 = features[kmeans_pred == 0]
+    # print(cluster0.shape)
+    # cluster1 = features[kmeans_pred == 1]
+    # print(cluster1.shape)
