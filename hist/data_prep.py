@@ -12,7 +12,7 @@ def merge_label(label_p, pred_p):
         if "prediction" in label:
             del label["prediction"]
     labels.extend(
-        ({'name': item["name"], 'synopsis': item["synopsis"], "label":item["prediction"] } for item in preds))
+        ({'name': item["name"], "label":item["prediction"] } for item in preds))
     
     return labels
 
