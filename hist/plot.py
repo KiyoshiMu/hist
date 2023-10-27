@@ -9,6 +9,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.figure_factory as ff
 import plotly.graph_objects as go
+
 # import umap
 from plotly.validators.scatter.marker import SymbolValidator
 from sklearn.manifold import TSNE
@@ -27,15 +28,7 @@ FONT = "Arial"
 
 def box_plot(df, x, y, y_range=None):
     fig = px.box(df, x=x, y=y, color=x, points="all")
-    fig.update_layout(
-        template=TEMPLATE,
-        font_family="Arial",
-        width=1280,
-        height=600,
-        showlegend=True,
-        boxgap=0.75,
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-    )
+
     if y_range:
         fig.update_yaxes(range=y_range)
     fig.add_annotation(
@@ -47,19 +40,33 @@ def box_plot(df, x, y, y_range=None):
         text="n=5 independent experiments",
         showarrow=False,
     )
+    fig.update_layout(
+        template=TEMPLATE,
+        font_family="Arial",
+        width=1280,
+        height=600,
+        showlegend=True,
+        boxgap=0.75,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        font=dict(
+            family="Arial",
+            size=32,
+        ),
+    )
     return fig
+
+
 def arr_project(arrays, method="umap") -> np.ndarray:
     # ! umap is not working
     # if method == "umap":
     #     reducer = umap.UMAP(n_components=2, random_state=0)
     # else:
-    reducer = TSNE(n_components=2, random_state=0, init="pca", learning_rate='auto')
+    reducer = TSNE(n_components=2, random_state=0, init="pca", learning_rate="auto")
 
     return reducer.fit_transform(arrays)
 
 
 def make_projection(embed, labels, index, source):
-
     projection = arr_project(embed)
     plot_df = pd.DataFrame(
         {
@@ -81,7 +88,6 @@ def avg_pool(arr):
 
 
 def make_plot(embed, labels, index, mark="", write=True, dst=Path(".")):
-
     projection = arr_project(embed)
     plot_df = pd.DataFrame(
         {
@@ -192,17 +198,17 @@ def measure_slide_vectors(
     preds = knn.predict(val_embed)
 
     _df = {
-            "D1": projection[:, 0],
-            "D2": projection[:, 1],
-            "label": val_labels,
-            "full_label": val_full_label,
-            "index": val_names,
-            "pred": preds,
-            "correct": [
-                val_labels == preds for (val_labels, preds) in zip(val_labels, preds)
-            ],
-        }
-    
+        "D1": projection[:, 0],
+        "D2": projection[:, 1],
+        "label": val_labels,
+        "full_label": val_full_label,
+        "index": val_names,
+        "pred": preds,
+        "correct": [
+            val_labels == preds for (val_labels, preds) in zip(val_labels, preds)
+        ],
+    }
+
     if val_entropy is not None:
         _df["pred_entropy"] = val_entropy
 
@@ -221,7 +227,8 @@ def measure_slide_vectors(
     fig.write_html(str(dst / f"{mark}{trial}_umap.html"))
     return fig
 
-def plot_embedding(df: pd.DataFrame, marks = None):
+
+def plot_embedding(df: pd.DataFrame, marks=None):
     fig = px.scatter(
         df,
         x="D1",
@@ -255,7 +262,10 @@ def plot_embedding(df: pd.DataFrame, marks = None):
     fig.update_yaxes(showticklabels=False)
     fig.update_layout(
         template=TEMPLATE,
-        font_family="Arial",
+        font=dict(
+            family="Arial",
+            size=22,
+        ),
         legend=dict(
             orientation="h",
         ),
@@ -263,6 +273,7 @@ def plot_embedding(df: pd.DataFrame, marks = None):
         height=600,
     )
     return fig
+
 
 def name_mapping(name):
     name = name.lower()
@@ -273,6 +284,7 @@ def name_mapping(name):
     if "hnf" in name:
         return "HNF"
     return "Hopfield on Bags"
+
 
 def plot_tag_perf_with_std(
     performance,
@@ -289,7 +301,7 @@ def plot_tag_perf_with_std(
         inplace=True,
     )
     fig = go.Figure()
-    x =  performance.index
+    x = performance.index
     marker_symbols = ["circle", "square", "x", "diamond", "cross", "triangle-up"]
     # fig.add_shape(
     #     type="line",
