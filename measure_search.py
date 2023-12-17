@@ -10,9 +10,30 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import f1_score
 from pathlib import Path
 from itertools import chain
+from sklearn.model_selection import GridSearchCV
 
 from hist.io_utils import pkl_load, simplify_label
 from hist.plot import box_plot
+
+
+def create_knn_cv(refer_embed: np.ndarray, labels):
+    upper_bound = math.ceil(math.sqrt(len(refer_embed)))
+    if upper_bound % 2 == 0:
+        upper_bound += 1
+    k_range = list(range(1, upper_bound))
+
+    param_grid = dict(n_neighbors=k_range)
+
+    grid = GridSearchCV(KNeighborsClassifier(), param_grid, cv=5, scoring="accuracy")
+
+    grid.fit(refer_embed, labels)
+    best_params = grid.best_params_
+    knn = KNeighborsClassifier(**best_params).fit(
+        refer_embed,
+        labels,
+    )
+    return knn
+
 
 def create_knn(refer_embed: np.ndarray, labels, use_all=False):
     if use_all:
@@ -29,13 +50,14 @@ def create_knn(refer_embed: np.ndarray, labels, use_all=False):
     )
     return knn
 
+
 def cal_micro_f1(
     query,
     reference,
     query_labels,
     reference_labels,
 ):
-    knn = create_knn(reference, reference_labels)
+    knn = create_knn_cv(reference, reference_labels)
     y_pred = knn.predict(query)
     f1_micro = f1_score(
         query_labels,
@@ -44,13 +66,8 @@ def cal_micro_f1(
     )
     return f1_micro
 
-def cal_search_quality(
-    query,
-    reference,
-    query_labels,
-    reference_labels,
-    k=10
-):
+
+def cal_search_quality(query, reference, query_labels, reference_labels, k=10):
     reference = reference / np.linalg.norm(reference, axis=1, keepdims=True)
     query = query / np.linalg.norm(query, axis=1, keepdims=True)
     accuracy_calculator = AccuracyCalculator(
@@ -65,28 +82,33 @@ def cal_search_quality(
         kmeans_func=None,
     )
     ret = accuracy_calculator.get_accuracy(
-        query, reference, query_labels, reference_labels, False
+        query, query_labels, reference, reference_labels, False
     )
     return ret
 
-MARKS = ["Attention Pooling", "Average Pooling",]
 
-def measure(base_dir:Path):
+MARKS = [
+    "Attention Pooling",
+    "Average Pooling",
+]
+
+
+def measure(base_dir: Path):
     df_search_raw = defaultdict(list)
     df_f1_micro_raw = defaultdict(list)
     for trial in range(5):
         marks = MARKS
         dst_dir = base_dir / f"trial{trial}"
-        for idx, mark in enumerate(marks) :
+        for idx, mark in enumerate(marks):
             if mark == "Attention Pooling":
                 train_pkl_p = dst_dir / f"train{trial}_pool.pkl"
-                val_pkl_p = dst_dir /  f"val{trial}_pool.pkl"
+                val_pkl_p = dst_dir / f"val{trial}_pool.pkl"
             elif mark == "Average Pooling":
-                train_pkl_p =dst_dir /  f"train_avg{trial}_pool.pkl"
-                val_pkl_p =dst_dir /  f"val_avg{trial}_pool.pkl"
+                train_pkl_p = dst_dir / f"train_avg{trial}_pool.pkl"
+                val_pkl_p = dst_dir / f"val_avg{trial}_pool.pkl"
             else:
                 raise ValueError("Unknown mark")
-            
+
             train = pkl_load(train_pkl_p)
             val = pkl_load(val_pkl_p)
             train_label = [simplify_label(l) for l in train["labels"]]
@@ -111,7 +133,7 @@ def measure(base_dir:Path):
 
             df_search_raw[mark].append(ret["mean_average_precision"])
             df_f1_micro_raw[mark].append(f1_micro)
-            
+
             if idx == len(marks) - 1:
                 random_query = np.random.rand(*query.shape)
                 random_reference = np.random.rand(*reference.shape)
@@ -129,15 +151,16 @@ def measure(base_dir:Path):
                     reference_labels,
                 )
                 df_f1_micro_raw["Random"].append(f1_micro)
-                
+
     df_search = pd.DataFrame(df_search_raw)
     df_search = pd.melt(df_search, var_name="Agg Method", value_name="mAP@10")
-    
+
     df_f1_micro = pd.DataFrame(df_f1_micro_raw)
     df_f1_micro = pd.melt(df_f1_micro, var_name="Agg Method", value_name="Micro F1")
     return df_search, df_f1_micro
 
-def step(lab_dir:Path):
+
+def step(lab_dir: Path):
     out_search = []
     out_f1 = []
     base_dirs = list(chain((p for p in lab_dir.iterdir() if p.is_dir())))
@@ -161,18 +184,34 @@ def step(lab_dir:Path):
         out_f1.append(part_f1_df)
     search_df = pd.concat(out_search)
     search_df.to_csv(lab_dir / "search_quality.csv", index=False)
-    
+
     f1_df = pd.concat(out_f1)
     f1_df.to_csv(lab_dir / "f1_micro.csv", index=False)
-    
+
     for mark in MARKS + ["Random"]:
-        search_fig = box_plot(search_df.loc[search_df['Agg Method'] == mark], x="Setting", y="mAP@10", y_range=[0.35, 0.52])
+        search_fig = box_plot(
+            search_df.loc[search_df["Agg Method"] == mark],
+            x="Setting",
+            y="mAP@10",
+            y_range=[0.35, 0.52],
+        )
         search_fig.write_image(lab_dir / f"{mark} search quality.pdf")
 
-        f1_fig = box_plot(f1_df.loc[f1_df['Agg Method'] == mark], x="Setting", y="Micro F1", y_range=[0.3, 0.5])
+        f1_fig = box_plot(
+            f1_df.loc[f1_df["Agg Method"] == mark],
+            x="Setting",
+            y="Micro F1",
+            y_range=[0.3, 0.5],
+        )
         f1_fig.write_image(lab_dir / f"{mark} f1 micro.pdf")
-        
+
+
 if __name__ == "__main__":
-    lab_dirs = [Path("lab_dino"), Path("lab_dense"), Path("lab_vit"), Path("lab_denseK")]
+    lab_dirs = [
+        Path("lab_dino"),
+        Path("lab_dense"),
+        Path("lab_vit"),
+        Path("lab_denseK"),
+    ]
     for lab_dir in lab_dirs:
         step(lab_dir)
