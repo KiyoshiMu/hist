@@ -7,7 +7,7 @@ import pandas as pd
 from pytorch_metric_learning.utils.accuracy_calculator import AccuracyCalculator
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import LabelEncoder
-from sklearn.metrics import f1_score
+from sklearn.metrics import precision_recall_fscore_support
 from pathlib import Path
 from itertools import chain
 from sklearn.model_selection import GridSearchCV
@@ -20,11 +20,12 @@ def create_knn_cv(refer_embed: np.ndarray, labels):
     upper_bound = math.ceil(math.sqrt(len(refer_embed)))
     if upper_bound % 2 == 0:
         upper_bound += 1
-    k_range = list(range(1, upper_bound))
+    print(f"upper_bound: {upper_bound}")
+    k_range = list(range(1, upper_bound + 1)) # include upper_bound
 
     param_grid = dict(n_neighbors=k_range)
 
-    grid = GridSearchCV(KNeighborsClassifier(), param_grid, cv=5, scoring="accuracy")
+    grid = GridSearchCV(KNeighborsClassifier(), param_grid, cv=3, scoring="f1_weighted")
 
     grid.fit(refer_embed, labels)
     best_params = grid.best_params_
@@ -51,7 +52,7 @@ def create_knn(refer_embed: np.ndarray, labels, use_all=False):
     return knn
 
 
-def cal_micro_f1(
+def cal_weighted_f1(
     query,
     reference,
     query_labels,
@@ -59,12 +60,13 @@ def cal_micro_f1(
 ):
     knn = create_knn_cv(reference, reference_labels)
     y_pred = knn.predict(query)
-    f1_micro = f1_score(
+    recall, precision, f1_weighted, support = precision_recall_fscore_support(
         query_labels,
         y_pred,
         average="weighted",
     )
-    return f1_micro
+
+    return recall, precision, f1_weighted, support
 
 
 def cal_search_quality(query, reference, query_labels, reference_labels, k=10):
@@ -82,7 +84,7 @@ def cal_search_quality(query, reference, query_labels, reference_labels, k=10):
         kmeans_func=None,
     )
     ret = accuracy_calculator.get_accuracy(
-        query, query_labels, reference, reference_labels, False
+        query, reference, query_labels, reference_labels, False
     )
     return ret
 
@@ -95,7 +97,9 @@ MARKS = [
 
 def measure(base_dir: Path):
     df_search_raw = defaultdict(list)
-    df_f1_micro_raw = defaultdict(list)
+    df_f1_weighted_raw = defaultdict(list)
+    df_recall_raw = defaultdict(list)
+    df_precision_raw = defaultdict(list)
     for trial in range(5):
         marks = MARKS
         dst_dir = base_dir / f"trial{trial}"
@@ -124,7 +128,7 @@ def measure(base_dir: Path):
                 query_labels,
                 reference_labels,
             )
-            f1_micro = cal_micro_f1(
+            recall, precision, f1_weighted, support = cal_weighted_f1(
                 query,
                 reference,
                 query_labels,
@@ -132,7 +136,9 @@ def measure(base_dir: Path):
             )
 
             df_search_raw[mark].append(ret["mean_average_precision"])
-            df_f1_micro_raw[mark].append(f1_micro)
+            df_f1_weighted_raw[mark].append(f1_weighted)
+            df_recall_raw[mark].append(recall)
+            df_precision_raw[mark].append(precision)
 
             if idx == len(marks) - 1:
                 random_query = np.random.rand(*query.shape)
@@ -144,25 +150,37 @@ def measure(base_dir: Path):
                     reference_labels,
                 )
                 df_search_raw["Random"].append(random_ret["mean_average_precision"])
-                f1_micro = cal_micro_f1(
+                recall, precision, f1_weighted, support = cal_weighted_f1(
                     random_query,
                     random_reference,
                     query_labels,
                     reference_labels,
                 )
-                df_f1_micro_raw["Random"].append(f1_micro)
+                df_f1_weighted_raw["Random"].append(f1_weighted)
+                df_recall_raw["Random"].append(recall)
+                df_precision_raw["Random"].append(precision)
 
     df_search = pd.DataFrame(df_search_raw)
     df_search = pd.melt(df_search, var_name="Agg Method", value_name="mAP@10")
 
-    df_f1_micro = pd.DataFrame(df_f1_micro_raw)
-    df_f1_micro = pd.melt(df_f1_micro, var_name="Agg Method", value_name="Micro F1")
-    return df_search, df_f1_micro
+    df_f1_weighted = pd.DataFrame(df_f1_weighted_raw)
+    df_f1_weighted = pd.melt(
+        df_f1_weighted, var_name="Agg Method", value_name="Weighted-F1"
+    )
+
+    df_recall = pd.DataFrame(df_recall_raw)
+    df_recall = pd.melt(df_recall, var_name="Agg Method", value_name="Recall")
+
+    df_precision = pd.DataFrame(df_precision_raw)
+    df_precision = pd.melt(df_precision, var_name="Agg Method", value_name="Precision")
+    return df_search, df_f1_weighted, df_recall, df_precision
 
 
 def step(lab_dir: Path):
     out_search = []
     out_f1 = []
+    out_recall = []
+    out_precision = []
     base_dirs = list(chain((p for p in lab_dir.iterdir() if p.is_dir())))
     print(base_dirs)
     order = {"neg": 2, "pos": 0, "pos_neg": 1}
@@ -170,23 +188,35 @@ def step(lab_dir: Path):
     for base_dir in base_dirs:
         name = base_dir.name
         if name == "neg":
-            _key = "With NBPG"
+            _key = "With BPG-"
         elif name == "pos":
             _key = "With BPG"
         elif name == "pos_neg":
             _key = "Without BPG"
         else:
             raise ValueError("Unknown name")
-        part_search_df, part_f1_df = measure(base_dir)
+        part_search_df, part_f1_df, part_recall_df, part_precision_df = measure(
+            base_dir
+        )
         part_search_df["Setting"] = _key
         part_f1_df["Setting"] = _key
+        part_recall_df["Setting"] = _key
+        part_precision_df["Setting"] = _key
         out_search.append(part_search_df)
         out_f1.append(part_f1_df)
+        out_recall.append(part_recall_df)
+        out_precision.append(part_precision_df)
     search_df = pd.concat(out_search)
     search_df.to_csv(lab_dir / "search_quality.csv", index=False)
 
     f1_df = pd.concat(out_f1)
-    f1_df.to_csv(lab_dir / "f1_micro.csv", index=False)
+    f1_df.to_csv(lab_dir / "f1_weighted.csv", index=False)
+
+    recall_df = pd.concat(out_recall)
+    recall_df.to_csv(lab_dir / "recall.csv", index=False)
+
+    precision_df = pd.concat(out_precision)
+    precision_df.to_csv(lab_dir / "precision.csv", index=False)
 
     for mark in MARKS + ["Random"]:
         search_fig = box_plot(
@@ -200,10 +230,10 @@ def step(lab_dir: Path):
         f1_fig = box_plot(
             f1_df.loc[f1_df["Agg Method"] == mark],
             x="Setting",
-            y="Micro F1",
+            y="Weighted-F1",
             y_range=[0.3, 0.5],
         )
-        f1_fig.write_image(lab_dir / f"{mark} f1 micro.pdf")
+        f1_fig.write_image(lab_dir / f"{mark} f1 weighted.pdf")
 
 
 if __name__ == "__main__":

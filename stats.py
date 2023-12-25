@@ -21,8 +21,8 @@ def step(p, mark=None, metric="mAP@10"):
 def merge():
     labs = ["lab_vit", "lab_denseK", "lab_dense", "lab_dino"]
     marks = ["ViT-16/256", "KimiaNet", "DenseNet", "DINO"]
-    names = ["search_quality.csv", "f1_micro.csv"]
-    metrics  = ["mAP@10", "Micro F1"]
+    names = ["search_quality.csv", "f1_weighted.csv", "recall.csv", "precision.csv"]
+    metrics  = ["mAP@10", "Weighted-F1", "Recall", "Precision"]
     
     for name, metric in zip(names, metrics):
         out = []
@@ -36,21 +36,20 @@ def merge():
         # sort the columns to [Extraction, Agg Method, Setting, metric]
         df_metrics = df_metrics[["Extraction", "Agg Method", "Setting", metric]]
         df_pivot = df_metrics.pivot_table(index=["Extraction", "Agg Method"], columns=["Setting"], values=metric, aggfunc=lambda x: x)
-        # sort the columns to ["With BPG", "Without BPG", "Negative NBPG"]
-        df_pivot = df_pivot[["With BPG", "Without BPG", "With NBPG"]]
+        df_pivot = df_pivot[["With BPG", "Without BPG", "With BPG-"]]
         df_pivot.to_latex(f"{name[:-4]}.lax", index=True)
         
         df_record = pd.concat(records_)
         df_record.to_csv(f"{name[:-4]}_record.csv", index=False)
 
 def p_test_bgp():
-    names = ["search_quality", "f1_micro"]
-    metrics  = ["mAP@10", "Micro F1"]
+    names = ["search_quality", "f1_weighted", "recall", "precision"]
+    metrics  = ["mAP@10", "Weighted-F1", "Recall", "Precision"]
     agg_methods = ["Average Pooling", "Attention Pooling"]
     extraction_methods = ["ViT-16/256", "KimiaNet", "DenseNet", "DINO"]
     settings = ["With BPG", "Without BPG"]
     
-    # settings = ["With BPG", "With NBPG"]
+    # settings = ["With BPG", "With BPG-"]
     for name, metric in zip(names, metrics):
         means = []
         diffs = []
@@ -74,8 +73,8 @@ def p_test_bgp():
         print(f"Mean Diff%: {np.mean(means):.3f}")
         
 def p_test_dino():
-    names = ["search_quality", "f1_micro"]
-    metrics  = ["mAP@10", "Micro F1"]
+    names = ["search_quality", "f1_weighted"]
+    metrics  = ["mAP@10", "Weighted-F1"]
     agg_method = "Attention Pooling"
     target = "DINO"
     extraction_methods = ["ViT-16/256", "KimiaNet", "DenseNet"]    
